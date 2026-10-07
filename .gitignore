@@ -1,0 +1,8 @@
+build/
+.dart_tool/
+.idea/
+.flutter-plugins-dependencies
+.flutter-plugins
+pubspec.lock
+android/.gradle/
+android/app/build/
