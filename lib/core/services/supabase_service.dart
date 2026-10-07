@@ -198,7 +198,7 @@ class SupabaseService {
   }
 
   Future<void> deleteStudent(String id) async {
-    // Delete ALL sessions related to this student
+    // Xóa tất cả các ca học liên quan đến học sinh này
     await _client.from('sessions').delete().eq('student_id', id);
 
     // Xóa học sinh
@@ -224,19 +224,24 @@ class SupabaseService {
     List<Session> existingSessions =
         data.map((j) => Session.fromJson(j)).toList();
 
-    // Auto-generate missing regular sessions for this month based on students' schedules
+    final now = DateTime.now();
+    final previousMonthStart = DateTime(now.year, now.month - 1);
+    final nextMonthStart = DateTime(now.year, now.month + 1);
+    final targetMonthStart = DateTime(month.year, month.month);
+
+    if (targetMonthStart.isBefore(previousMonthStart) ||
+        targetMonthStart.isAfter(nextMonthStart)) {
+      return existingSessions;
+    }
+
+    // Tự động tạo các ca học còn thiếu trong tháng dựa trên lịch học sinh
     try {
       final students = await getStudents();
       final branches = await getBranches();
       final programs = await getPrograms();
 
-      print(
-          'DEBUG: Found ${students.length} students, ${branches.length} branches, ${programs.length} programs');
-
       List<Session> missingSessions = [];
       for (final student in students) {
-        print(
-            'DEBUG: Checking student ${student.name} (branch: ${student.branchId}, program: ${student.programId})');
         if (student.branchId == null || student.programId == null) continue;
         final branch = branches
             .cast<Branch?>()
@@ -245,13 +250,9 @@ class SupabaseService {
             .cast<Program?>()
             .firstWhere((p) => p?.id == student.programId, orElse: () => null);
         if (branch == null || program == null) {
-          print(
-              'DEBUG: Branch or program not found for student ${student.name}');
           continue;
         }
 
-        print(
-            'DEBUG: Generating sessions for ${student.name} (days: ${student.scheduleDays}, start: ${student.startTime}, end: ${student.endTime})');
         final expectedSessions = generateSessionsForStudent(
           student: student,
           branchName: branch.name,
@@ -260,10 +261,8 @@ class SupabaseService {
           month: month,
         );
 
-        print('DEBUG: Expected sessions count: ${expectedSessions.length}');
-
         for (final expected in expectedSessions) {
-          // Check if session exists (by studentId and date, and not a makeup session)
+          // Kiểm tra xem ca học đã tồn tại chưa (theo studentId, ngày và không phải ca học bù)
           final exists = existingSessions.any((s) =>
               s.studentId == student.id &&
               s.date.year == expected.date.year &&
@@ -276,12 +275,9 @@ class SupabaseService {
         }
       }
 
-      print(
-          'DEBUG: Total missing sessions to create: ${missingSessions.length}');
-
       if (missingSessions.isNotEmpty) {
         await bulkCreateSessions(missingSessions);
-        // Re-fetch sessions to get them with proper IDs from DB
+        // Tải lại danh sách ca học kèm ID từ database
         final newData = await _client
             .from('sessions')
             .select()
@@ -292,8 +288,7 @@ class SupabaseService {
             .order('time_slot');
         existingSessions = newData.map((j) => Session.fromJson(j)).toList();
       }
-    } catch (e, stack) {
-      print('Error auto-generating sessions: $e\n$stack');
+    } catch (e) {
       throw Exception('Lỗi tạo ca học tự động: $e');
     }
 
@@ -367,7 +362,7 @@ class SupabaseService {
   // GENERATE SESSIONS FROM STUDENT SCHEDULE
   // ============================================================
 
-  /// Generates sessions for a given student for the given month
+  /// Tạo danh sách ca học định kỳ cho học sinh trong tháng được chỉ định
   List<Session> generateSessionsForStudent({
     required Student student,
     required String branchName,

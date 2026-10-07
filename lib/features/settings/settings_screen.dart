@@ -28,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final enabled = await _storage.read(key: 'notifications_enabled');
       final sound = await _storage.read(key: 'notification_sound');
-      
+
       if (mounted) {
         setState(() {
           _notificationsEnabled = enabled != 'false';
@@ -43,12 +43,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveSettings() async {
     try {
-      await _storage.write(key: 'notifications_enabled', value: _notificationsEnabled.toString());
-      await _storage.write(key: 'notification_sound', value: _notificationSound);
-      
+      await _storage.write(
+          key: 'notifications_enabled',
+          value: _notificationsEnabled.toString());
+      await _storage.write(
+          key: 'notification_sound', value: _notificationSound);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã lưu cài đặt thông báo'), backgroundColor: AppColors.success),
+          const SnackBar(
+              content: Text('Đã lưu cài đặt thông báo'),
+              backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -77,11 +82,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             highlightColor: Colors.grey[100]!,
             child: Column(
               children: [
-                Container(height: 20, width: 120, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
-                Container(height: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16))),
+                Container(
+                    height: 20,
+                    width: 120,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4))),
+                Container(
+                    height: 120,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16))),
                 const SizedBox(height: 24),
-                Container(height: 20, width: 100, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
-                Container(height: 80, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16))),
+                Container(
+                    height: 20,
+                    width: 100,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4))),
+                Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16))),
               ],
             ),
           ),
@@ -103,8 +128,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'CÀI ĐẶT THÔNG BÁO',
               children: [
                 SwitchListTile(
-                  title: const Text('Bật thông báo ứng dụng', style: TextStyle(fontWeight: FontWeight.w500)),
-                  subtitle: const Text('Nhận thông báo khi ca học bắt đầu và kết thúc', style: TextStyle(fontSize: 12)),
+                  title: const Text('Bật thông báo ứng dụng',
+                      style: TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: const Text(
+                      'Nhận thông báo khi ca học bắt đầu và kết thúc',
+                      style: TextStyle(fontSize: 12)),
                   value: _notificationsEnabled,
                   activeColor: AppColors.primary,
                   contentPadding: EdgeInsets.zero,
@@ -116,14 +144,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Âm thanh thông báo', style: TextStyle(fontWeight: FontWeight.w500)),
+                  title: const Text('Âm thanh thông báo',
+                      style: TextStyle(fontWeight: FontWeight.w500)),
                   trailing: DropdownButton<String>(
                     value: _notificationSound,
                     underline: const SizedBox(),
                     items: const [
-                      DropdownMenuItem(value: 'default', child: Text('Mặc định')),
-                      DropdownMenuItem(value: 'sound_1', child: Text('Âm thanh 1 (Chuông)')),
-                      DropdownMenuItem(value: 'sound_2', child: Text('Âm thanh 2 (Ting)')),
+                      DropdownMenuItem(
+                          value: 'default', child: Text('Mặc định')),
+                      DropdownMenuItem(
+                          value: 'sound_1', child: Text('Âm thanh 1 (Chuông)')),
+                      DropdownMenuItem(
+                          value: 'sound_2', child: Text('Âm thanh 2 (Ting)')),
                     ],
                     onChanged: (val) {
                       if (val != null) {
@@ -139,7 +171,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             OutlinedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout, color: AppColors.error),
-              label: const Text('Đăng xuất', style: TextStyle(color: AppColors.error)),
+              label: const Text('Đăng xuất',
+                  style: TextStyle(color: AppColors.error)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.error,
                 side: const BorderSide(color: AppColors.error),
@@ -152,7 +185,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSection({required String title, required List<Widget> children}) {
+  Widget _buildSection(
+      {required String title, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -53,7 +53,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
             if (endParts.length == 2) {
               final h = int.tryParse(endParts[0]) ?? 0;
               final m = int.tryParse(endParts[1]) ?? 0;
-              final endTime = DateTime(s.date.year, s.date.month, s.date.day, h, m);
+              final endTime =
+                  DateTime(s.date.year, s.date.month, s.date.day, h, m);
               if (endTime.isAfter(DateTime.now())) {
                 NotificationService().scheduleSessionEndNotification(
                   id: s.id.hashCode.abs(),
@@ -74,7 +75,9 @@ class ScheduleScreenState extends State<ScheduleScreen> {
             title: const Text('Lỗi đồng bộ dữ liệu'),
             content: Text(e.toString()),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng'))
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'))
             ],
           ),
         );
@@ -156,7 +159,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
     print('DEBUG-UI: _monthSessions length = ${_monthSessions.length}');
     final filtered = _monthSessions.where((s) {
       final same = AppDateUtils.isSameDay(s.date, _selectedDate);
-      print('DEBUG-UI: comparing session date ${s.date} (day: ${s.date.day}) with _selectedDate $_selectedDate (day: ${_selectedDate.day}) -> match: $same');
+      print(
+          'DEBUG-UI: comparing session date ${s.date} (day: ${s.date.day}) with _selectedDate $_selectedDate (day: ${_selectedDate.day}) -> match: $same');
       return same;
     }).toList();
     print('DEBUG-UI: _selectedDaySessions length = ${filtered.length}');
@@ -517,7 +521,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                               SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.4,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.4,
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -525,7 +530,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                       Icon(
                                         Icons.event_available_rounded,
                                         size: 56,
-                                        color: AppColors.textSecondary.withOpacity(0.4),
+                                        color: AppColors.textSecondary
+                                            .withOpacity(0.4),
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
