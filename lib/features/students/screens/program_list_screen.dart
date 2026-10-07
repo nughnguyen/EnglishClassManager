@@ -31,9 +31,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi tải danh sách: $e'),
-              backgroundColor: AppColors.error),
+          SnackBar(content: Text('Lỗi tải danh sách: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -48,9 +46,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi xóa CTĐT: $e'),
-              backgroundColor: AppColors.error),
+          SnackBar(content: Text('Lỗi xóa CTĐT: $e'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -58,8 +54,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
 
   void _showAddProgramDialog([Program? program]) {
     final nameCtrl = TextEditingController(text: program?.name);
-    final rateCtrl = TextEditingController(
-        text: program?.defaultHourlyRate.toStringAsFixed(0));
+    final rateCtrl = TextEditingController(text: program?.defaultHourlyRate.toStringAsFixed(0));
     String colorHex = program?.colorHex ?? '#3D5AFE';
     bool isLoading = false;
 
@@ -80,8 +75,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: rateCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Mức lương/giờ (VND)'),
+                  decoration: const InputDecoration(labelText: 'Mức lương/giờ (VND)'),
                   keyboardType: TextInputType.number,
                 ),
               ],
@@ -100,7 +94,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                       final rateStr = rateCtrl.text.trim();
                       if (name.isEmpty || rateStr.isEmpty) return;
                       final rate = double.tryParse(rateStr) ?? 0;
-
+                      
                       setState(() => isLoading = true);
                       try {
                         if (program == null) {
@@ -123,9 +117,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Lỗi: $e'),
-                                backgroundColor: AppColors.error),
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
                           );
                         }
                         setState(() => isLoading = false);
@@ -133,9 +125,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                     },
               child: isLoading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Lưu'),
             ),
           ],
@@ -156,9 +146,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
       body: _loading
           ? _buildSkeleton()
           : _programs.isEmpty
-              ? const Center(
-                  child: Text('Chưa có CTĐT nào',
-                      style: TextStyle(color: AppColors.textSecondary)))
+              ? const Center(child: Text('Chưa có CTĐT nào', style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
                   onRefresh: _loadPrograms,
                   child: ListView.builder(
@@ -173,14 +161,10 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                         child: Card(
                           margin: EdgeInsets.zero,
                           child: ListTile(
-                            title: Text(program.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
-                            subtitle: Text(CurrencyFormatter.format(
-                                program.defaultHourlyRate)),
+                            title: Text(program.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(CurrencyFormatter.format(program.defaultHourlyRate)),
                             onTap: () => _showAddProgramDialog(program),
-                            trailing: const Icon(Icons.edit,
-                                size: 20, color: AppColors.textSecondary),
+                            trailing: const Icon(Icons.edit, size: 20, color: AppColors.textSecondary),
                           ),
                         ),
                       );

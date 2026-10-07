@@ -30,9 +30,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi tải danh sách: $e'),
-              backgroundColor: AppColors.error),
+          SnackBar(content: Text('Lỗi tải danh sách: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -47,9 +45,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi xóa chi nhánh: $e'),
-              backgroundColor: AppColors.error),
+          SnackBar(content: Text('Lỗi xóa chi nhánh: $e'), backgroundColor: AppColors.error),
         );
       }
     }
@@ -85,8 +81,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
                         if (branch == null) {
                           await SupabaseService.instance.createBranch(name);
                         } else {
-                          await SupabaseService.instance
-                              .updateBranch(branch.id, name);
+                          await SupabaseService.instance.updateBranch(branch.id, name);
                         }
                         if (mounted) {
                           Navigator.pop(context);
@@ -95,9 +90,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Lỗi: $e'),
-                                backgroundColor: AppColors.error),
+                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
                           );
                         }
                         setState(() => isLoading = false);
@@ -105,9 +98,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
                     },
               child: isLoading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Lưu'),
             ),
           ],
@@ -128,9 +119,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
       body: _loading
           ? _buildSkeleton()
           : _branches.isEmpty
-              ? const Center(
-                  child: Text('Chưa có chi nhánh nào',
-                      style: TextStyle(color: AppColors.textSecondary)))
+              ? const Center(child: Text('Chưa có chi nhánh nào', style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
                   onRefresh: _loadBranches,
                   child: ListView.builder(
@@ -145,12 +134,9 @@ class _BranchListScreenState extends State<BranchListScreen> {
                         child: Card(
                           margin: EdgeInsets.zero,
                           child: ListTile(
-                            title: Text(branch.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            title: Text(branch.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                             onTap: () => _showAddBranchDialog(branch),
-                            trailing: const Icon(Icons.edit,
-                                size: 20, color: AppColors.textSecondary),
+                            trailing: const Icon(Icons.edit, size: 20, color: AppColors.textSecondary),
                           ),
                         ),
                       );
