@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/session.dart';
 import '../../../core/services/supabase_service.dart';
@@ -508,7 +509,7 @@ class ScheduleScreenState extends State<ScheduleScreen> {
             // Sessions list
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? _buildSessionSkeleton()
                   : _selectedDaySessions.isEmpty
                       ? RefreshIndicator(
                           onRefresh: loadSessions,
@@ -563,6 +564,27 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                         ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: 88,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
         ),
       ),
     );

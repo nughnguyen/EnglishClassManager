@@ -224,21 +224,14 @@ class SupabaseService {
     List<Session> existingSessions =
         data.map((j) => Session.fromJson(j)).toList();
 
-    final now = DateTime.now();
-    final previousMonthStart = DateTime(now.year, now.month - 1);
-    final nextMonthStart = DateTime(now.year, now.month + 1);
-    final targetMonthStart = DateTime(month.year, month.month);
-
-    if (targetMonthStart.isBefore(previousMonthStart) ||
-        targetMonthStart.isAfter(nextMonthStart)) {
-      return existingSessions;
-    }
-
     // Auto-generate missing regular sessions for this month based on students' schedules
     try {
       final students = await getStudents();
       final branches = await getBranches();
       final programs = await getPrograms();
+
+      print(
+          'DEBUG: Found ${students.length} students, ${branches.length} branches, ${programs.length} programs');
 
       List<Session> missingSessions = [];
       for (final student in students) {

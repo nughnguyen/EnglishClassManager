@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/program.dart';
 import '../../../core/services/supabase_service.dart';
@@ -143,7 +144,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSkeleton()
           : _programs.isEmpty
               ? const Center(child: Text('Chưa có CTĐT nào', style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
@@ -170,6 +171,27 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                     },
                   ),
                 ),
+    );
+  }
+
+  Widget _buildSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

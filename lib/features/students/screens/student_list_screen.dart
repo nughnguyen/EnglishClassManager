@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../../main.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/student.dart';
@@ -51,7 +52,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi tải dữ liệu: $e'),
+            content: Text('L?i t?i d? li?u: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -71,7 +72,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi xoá học sinh: $e'),
+            content: Text('L?i xo� h?c sinh: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -133,7 +134,7 @@ class StudentListScreenState extends State<StudentListScreen> {
             _buildFilterChips(),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? _buildSkeleton()
                   : _filteredStudents.isEmpty
                       ? _buildEmptyState()
                       : RefreshIndicator(
@@ -146,7 +147,7 @@ class StudentListScreenState extends State<StudentListScreen> {
                               return SwipeableActionCard(
                                 key: ValueKey(student.id),
                                 margin: const EdgeInsets.only(bottom: 12),
-                                deleteLabel: 'học sinh "${student.name}"',
+                                deleteLabel: 'h?c sinh "${student.name}"',
                                 onDeleteConfirmed: () => _deleteStudent(student.id),
                                 onEdit: () => _navigateToAdd(student: student),
                                 child: _StudentCard(
@@ -173,7 +174,7 @@ class StudentListScreenState extends State<StudentListScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'Học sinh',
+            'H?c sinh',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -183,7 +184,7 @@ class StudentListScreenState extends State<StudentListScreen> {
           ElevatedButton.icon(
             onPressed: () => _navigateToAdd(),
             icon: const Icon(Icons.add, size: 20),
-            label: const Text('Thêm', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: const Text('Th�m', style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: AppColors.primary,
@@ -205,7 +206,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       child: TextField(
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
-          hintText: 'Tìm kiếm học sinh...',
+          hintText: 'T�m ki?m h?c sinh...',
           prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
           filled: true,
           fillColor: Colors.white,
@@ -226,7 +227,7 @@ class StudentListScreenState extends State<StudentListScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildChip('Tất cả', null),
+          _buildChip('T?t c?', null),
           ..._branches.map((b) => _buildChip(b.name, b.id)),
         ],
       ),
@@ -261,6 +262,27 @@ class StudentListScreenState extends State<StudentListScreen> {
     );
   }
 
+
+  Widget _buildSkeleton() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: 6,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -270,7 +292,7 @@ class StudentListScreenState extends State<StudentListScreen> {
               size: 72, color: AppColors.textSecondary.withOpacity(0.5)),
           const SizedBox(height: 16),
           const Text(
-            'Chưa có học sinh nào',
+            'Chua c� h?c sinh n�o',
             style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
           ),
         ],
@@ -344,7 +366,7 @@ class _StudentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        branchName.isNotEmpty ? branchName : 'Chưa có CN',
+                        branchName.isNotEmpty ? branchName : 'Chua c� CN',
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
@@ -357,7 +379,7 @@ class _StudentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        programName.isNotEmpty ? programName : 'Chưa có CT',
+                        programName.isNotEmpty ? programName : 'Chua c� CT',
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
@@ -380,7 +402,7 @@ class _StudentCard extends StatelessWidget {
                       Icon(Icons.access_time, size: 11, color: color),
                       const SizedBox(width: 4),
                       Text(
-                        '$days ${student.startTime != null ? "• ${student.startTime}" : ""}',
+                        '$days ${student.startTime != null ? "� ${student.startTime}" : ""}',
                         style: TextStyle(
                           fontSize: 11,
                           color: color,

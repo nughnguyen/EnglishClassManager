@@ -6,3 +6,7 @@ build/
 pubspec.lock
 android/.gradle/
 android/app/build/
+*.hprof
+android/java_pid*.hprof
+android/.kotlin/
+android/.gradle/
