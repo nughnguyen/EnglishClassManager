@@ -9,15 +9,17 @@ import 'features/auth/verify_email_screen.dart';
 import 'features/schedule/schedule_screen.dart';
 import 'features/schedule/add_session_screen.dart';
 import 'features/students/screens/student_list_screen.dart';
-import 'features/students/screens/add_student_screen.dart';
 import 'features/students/screens/class_management_screen.dart';
 import 'features/salary/salary_report_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'widgets/curved_bottom_nav.dart';
 
-final GlobalKey<ScheduleScreenState> scheduleKey = GlobalKey<ScheduleScreenState>();
-final GlobalKey<SalaryReportScreenState> salaryKey = GlobalKey<SalaryReportScreenState>();
-final GlobalKey<StudentListScreenState> studentListKey = GlobalKey<StudentListScreenState>();
+final GlobalKey<ScheduleScreenState> scheduleKey =
+    GlobalKey<ScheduleScreenState>();
+final GlobalKey<SalaryReportScreenState> salaryKey =
+    GlobalKey<SalaryReportScreenState>();
+final GlobalKey<StudentListScreenState> studentListKey =
+    GlobalKey<StudentListScreenState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,57 +48,57 @@ class EnglishClassManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
-      valueListenable: appThemeMode,
-      builder: (context, themeMode, _) => MaterialApp(
-      title: 'English Class Manager',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          secondary: AppColors.accent,
-          surface: AppColors.surface,
-          background: AppColors.background,
-          error: AppColors.error,
-        ),
-        fontFamily: 'Roboto',
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          titleTextStyle: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        snackBarTheme: const SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData.dark(useMaterial3: true),
-      home: const _AuthGate(),
-    ));
+        valueListenable: appThemeMode,
+        builder: (context, themeMode, _) => MaterialApp(
+              title: 'English Class Manager',
+              debugShowCheckedModeBanner: false,
+              themeMode: themeMode,
+              theme: ThemeData(
+                useMaterial3: true,
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: AppColors.primary,
+                  primary: AppColors.primary,
+                  secondary: AppColors.accent,
+                  surface: AppColors.surface,
+                  background: AppColors.background,
+                  error: AppColors.error,
+                ),
+                fontFamily: 'Roboto',
+                appBarTheme: const AppBarTheme(
+                  elevation: 0,
+                  centerTitle: true,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  titleTextStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                elevatedButtonTheme: ElevatedButtonThemeData(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                inputDecorationTheme: InputDecorationTheme(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                snackBarTheme: const SnackBarThemeData(
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
+                ),
+              ),
+              darkTheme: ThemeData.dark(useMaterial3: true),
+              home: const _AuthGate(),
+            ));
   }
 }
 
@@ -115,7 +117,8 @@ class _AuthGateState extends State<_AuthGate> {
       builder: (context, snapshot) {
         final session = Supabase.instance.client.auth.currentSession;
 
-        if (snapshot.connectionState == ConnectionState.waiting && session == null) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            session == null) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -213,5 +216,3 @@ class _MainShellState extends State<MainShell> {
     }
   }
 }
-
-

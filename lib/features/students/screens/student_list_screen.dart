@@ -237,7 +237,7 @@ class StudentListScreenState extends State<StudentListScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildChip('T?t c?', null),
+          _buildChip('Tất cả', null),
           ..._branches.map((b) => _buildChip(b.name, b.id)),
         ],
       ),
