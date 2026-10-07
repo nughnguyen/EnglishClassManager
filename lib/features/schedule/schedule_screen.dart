@@ -8,7 +8,6 @@ import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
 import 'widgets/session_card.dart';
 import 'add_session_screen.dart';
-import '../settings/settings_screen.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -85,19 +84,51 @@ class ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   void handleNotificationTap(String payload) {
+    _openSessionFromNotification(payload);
+  }
+
+  Future<void> _openSessionFromNotification(String sessionId) async {
     try {
-      final session = _monthSessions.firstWhere((s) => s.id == payload);
+      Session? session = _findSession(_monthSessions, sessionId);
+      if (session == null) {
+        final monthSessions = await SupabaseService.instance.getSessionsForMonth(DateTime.now());
+        session = _findSession(monthSessions, sessionId);
+        if (session == null) {
+          for (var offset = 1; offset <= 12 && session == null; offset++) {
+            final month = DateTime(DateTime.now().year, DateTime.now().month - offset);
+            final olderSessions = await SupabaseService.instance.getSessionsForMonth(month);
+            session = _findSession(olderSessions, sessionId);
+            if (session == null) {
+              final futureMonth = DateTime(DateTime.now().year, DateTime.now().month + offset);
+              final futureSessions = await SupabaseService.instance.getSessionsForMonth(futureMonth);
+              session = _findSession(futureSessions, sessionId);
+            }
+          }
+        }
+      }
+      if (session == null || !mounted) return;
+      final selectedSession = session;
       setState(() {
-        _currentMonth = DateTime(session.date.year, session.date.month);
-        _selectedDate = session.date;
+        _currentMonth = DateTime(selectedSession.date.year, selectedSession.date.month);
+        _selectedDate = selectedSession.date;
       });
+      await loadSessions();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToSelectedDay();
-        _showActionBottomSheet(session);
+        _showActionBottomSheet(selectedSession);
       });
-    } catch (e) {
-      // Session not found in current loaded month or deleted
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không tìm thấy ca học trong thông báo.')));
+      }
     }
+  }
+
+  Session? _findSession(List<Session> sessions, String id) {
+    for (final session in sessions) {
+      if (session.id == id) return session;
+    }
+    return null;
   }
 
   Future<void> _pickMonth() async {
@@ -326,30 +357,6 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 13)),
                     ],
-                  ),
-                  InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Chưa có thông báo mới')),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                              color: AppColors.cardShadow,
-                              blurRadius: 4,
-                              offset: const Offset(0, 2)),
-                        ],
-                      ),
-                      child: const Icon(Icons.notifications_outlined,
-                          color: AppColors.primary),
-                    ),
                   ),
                 ],
               ),

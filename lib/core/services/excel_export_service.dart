@@ -42,10 +42,12 @@ class ExcelExportService {
       _setCell(totalSheet, rowIdx, 0, stt.toString());
       _setCell(totalSheet, rowIdx, 1, entry.key);
       _setCell(totalSheet, rowIdx, 2, branchTotal);
-      _setCell(totalSheet, rowIdx, 3, stt == 1 ? grandTotal : '');
       rowIdx++;
       stt++;
     }
+    _setCell(totalSheet, rowIdx, 2, 'TỔNG CỘNG');
+    _setCell(totalSheet, rowIdx, 3, grandTotal);
+    rowIdx++;
 
     // Bank info section
     rowIdx += 2;
@@ -98,8 +100,20 @@ class ExcelExportService {
 
       // Total row
       final totalRow = sortedSessions.length + 1;
-      _setCell(sheet, totalRow - 1, 10,
+      _setCell(sheet, totalRow, 9, 'TỔNG CỘNG');
+      _setCell(sheet, totalRow, 10,
           sortedSessions.fold(0.0, (sum, s) => sum + s.totalAmount));
+      sheet.setColumnWidth(0, 10);
+      sheet.setColumnWidth(1, 10);
+      sheet.setColumnWidth(2, 10);
+      sheet.setColumnWidth(3, 18);
+      sheet.setColumnWidth(4, 24);
+      sheet.setColumnWidth(5, 18);
+      sheet.setColumnWidth(6, 26);
+      sheet.setColumnWidth(7, 28);
+      sheet.setColumnWidth(8, 12);
+      sheet.setColumnWidth(9, 22);
+      sheet.setColumnWidth(10, 18);
     }
 
     // Save and share

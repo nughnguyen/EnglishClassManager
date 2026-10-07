@@ -45,8 +45,8 @@ class NotificationService {
       'Nhắc nhở điểm danh & Lịch dạy',
       description: 'Nhắc nhở xác nhận điểm danh và lịch dạy',
       importance: Importance.high,
-      sound: soundMode != 'default' ? RawResourceAndroidNotificationSound(soundMode) : null,
-      playSound: true,
+      sound: null,
+      playSound: soundMode != 'silent',
     );
 
     await _plugin
@@ -81,8 +81,8 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       icon: '@drawable/ic_launcher',
-      sound: sound != 'default' ? RawResourceAndroidNotificationSound(sound) : null,
-      playSound: true,
+      sound: null,
+      playSound: sound != 'silent',
     );
   }
 

@@ -32,7 +32,9 @@ class StudentListScreenState extends State<StudentListScreen> {
     _loadData();
   }
 
-  void loadStudents() { _loadData(); }
+  void loadStudents() {
+    _loadData();
+  }
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
@@ -52,7 +54,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('L?i t?i d? li?u: $e'),
+            content: Text('Lỗi tải dữ liệu: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -72,7 +74,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('L?i xo� h?c sinh: $e'),
+            content: Text('Lỗi xoá học sinh: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -93,8 +95,10 @@ class StudentListScreenState extends State<StudentListScreen> {
 
   List<Student> get _filteredStudents {
     return _students.where((s) {
-      final matchSearch = s.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchBranch = _selectedBranchId == null || s.branchId == _selectedBranchId;
+      final matchSearch =
+          s.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchBranch =
+          _selectedBranchId == null || s.branchId == _selectedBranchId;
       return matchSearch && matchBranch;
     }).toList();
   }
@@ -121,11 +125,13 @@ class StudentListScreenState extends State<StudentListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: widget.isTab ? FloatingActionButton(
-        onPressed: _navigateToAdd,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
+      floatingActionButton: widget.isTab
+          ? FloatingActionButton(
+              onPressed: _navigateToAdd,
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -140,7 +146,8 @@ class StudentListScreenState extends State<StudentListScreen> {
                       : RefreshIndicator(
                           onRefresh: _loadData,
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                             itemCount: _filteredStudents.length,
                             itemBuilder: (context, index) {
                               final student = _filteredStudents[index];
@@ -148,12 +155,14 @@ class StudentListScreenState extends State<StudentListScreen> {
                                 key: ValueKey(student.id),
                                 margin: const EdgeInsets.only(bottom: 12),
                                 deleteLabel: 'h?c sinh "${student.name}"',
-                                onDeleteConfirmed: () => _deleteStudent(student.id),
+                                onDeleteConfirmed: () =>
+                                    _deleteStudent(student.id),
                                 onEdit: () => _navigateToAdd(student: student),
                                 child: _StudentCard(
                                   student: student,
                                   branchName: _getBranchName(student.branchId),
-                                  programName: _getProgramName(student.programId),
+                                  programName:
+                                      _getProgramName(student.programId),
                                 ),
                               );
                             },
@@ -184,7 +193,8 @@ class StudentListScreenState extends State<StudentListScreen> {
           ElevatedButton.icon(
             onPressed: () => _navigateToAdd(),
             icon: const Icon(Icons.add, size: 20),
-            label: const Text('Th�m', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: const Text('Thêm',
+                style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: AppColors.primary,
@@ -206,7 +216,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       child: TextField(
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
-          hintText: 'T�m ki?m h?c sinh...',
+          hintText: 'Tìm kiếm học sinh...',
           prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
           filled: true,
           fillColor: Colors.white,
@@ -262,7 +272,6 @@ class StudentListScreenState extends State<StudentListScreen> {
     );
   }
 
-
   Widget _buildSkeleton() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -283,6 +292,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       ),
     );
   }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -292,7 +302,7 @@ class StudentListScreenState extends State<StudentListScreen> {
               size: 72, color: AppColors.textSecondary.withOpacity(0.5)),
           const SizedBox(height: 16),
           const Text(
-            'Chua c� h?c sinh n�o',
+            'Chưa có học sinh nào',
             style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
           ),
         ],
@@ -366,7 +376,9 @@ class _StudentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        branchName.isNotEmpty ? branchName : 'Chua c� CN',
+                        branchName.isNotEmpty
+                            ? branchName
+                            : 'Chưa có chi nhánh',
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
@@ -379,7 +391,9 @@ class _StudentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        programName.isNotEmpty ? programName : 'Chua c� CT',
+                        programName.isNotEmpty
+                            ? programName
+                            : 'Chưa có chương trình đào tạo',
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                         maxLines: 1,
@@ -402,7 +416,7 @@ class _StudentCard extends StatelessWidget {
                       Icon(Icons.access_time, size: 11, color: color),
                       const SizedBox(width: 4),
                       Text(
-                        '$days ${student.startTime != null ? "� ${student.startTime}" : ""}',
+                        '$days ${student.startTime != null ? "� ${student.startTime}" : ""}',
                         style: TextStyle(
                           fontSize: 11,
                           color: color,
@@ -429,4 +443,3 @@ class _StudentCard extends StatelessWidget {
     );
   }
 }
-
