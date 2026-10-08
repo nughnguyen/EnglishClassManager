@@ -158,14 +158,27 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         deleteLabel: 'CTĐT "${program.name}"',
                         onDeleteConfirmed: () => _deleteProgram(program.id),
-                        child: Card(
-                          margin: EdgeInsets.zero,
-                          child: ListTile(
-                            title: Text(program.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(CurrencyFormatter.format(program.defaultHourlyRate)),
-                            onTap: () => _showAddProgramDialog(program),
-                            trailing: const Icon(Icons.edit, size: 20, color: AppColors.textSecondary),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: const Icon(Icons.auto_stories_rounded,
+                                color: AppColors.accent, size: 21),
                           ),
+                          title: Text(program.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(CurrencyFormatter.format(
+                              program.defaultHourlyRate)),
+                          onTap: () => _showAddProgramDialog(program),
+                          trailing: const Icon(Icons.edit,
+                              size: 20, color: AppColors.textSecondary),
                         ),
                       );
                     },

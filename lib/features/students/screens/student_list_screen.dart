@@ -181,15 +181,15 @@ class StudentListScreenState extends State<StudentListScreen> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-      color: AppColors.primary,
+      color: AppColors.surface,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
             'Học sinh',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
+              color: AppColors.textPrimary,
+              fontSize: 19,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -199,8 +199,8 @@ class StudentListScreenState extends State<StudentListScreen> {
             label: const Text('Thêm',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -333,17 +333,17 @@ class _StudentCard extends StatelessWidget {
         .join(', ');
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Avatar
           Container(
-            width: 34,
-            height: 34,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Center(
               child: Text(
@@ -356,7 +356,7 @@ class _StudentCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           // Info
           Expanded(
             child: Column(
@@ -366,7 +366,7 @@ class _StudentCard extends StatelessWidget {
                 Text(
                   student.name,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),

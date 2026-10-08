@@ -20,17 +20,32 @@ class _ClassManagementScreenState extends State<ClassManagementScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: const Text('Lớp học'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            tabs: [
+          toolbarHeight: 68,
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Quản lý lớp học'),
+              SizedBox(height: 2),
+              Text('Học sinh, chi nhánh và chương trình',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary)),
+            ],
+          ),
+          bottom: TabBar(
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
+            indicatorWeight: 3,
+            labelStyle:
+                const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            tabs: const [
               Tab(text: 'Học sinh'),
               Tab(text: 'Chi nhánh'),
-              Tab(text: 'CT Đào tạo'),
+              Tab(text: 'Chương trình'),
             ],
           ),
         ),

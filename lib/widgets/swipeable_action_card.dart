@@ -166,6 +166,14 @@ class _SwipeableActionCardState extends State<SwipeableActionCard>
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.divider),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: AppColors.cardShadow,
+                        blurRadius: 14,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
                   ),
                   child: widget.child,
                 ),

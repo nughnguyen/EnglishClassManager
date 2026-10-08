@@ -40,17 +40,18 @@ class SessionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
         boxShadow: const [
           BoxShadow(
             color: AppColors.cardShadow,
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            blurRadius: 14,
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,

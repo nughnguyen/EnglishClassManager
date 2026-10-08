@@ -355,16 +355,11 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('TKCA VN',
-                          style: TextStyle(
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12)),
                       const Text('Lịch dạy',
                           style: TextStyle(
                               color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 28)),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20)),
                       Text(
                           '${_monthSessions.where((s) => s.date.year == _selectedDate.year && s.date.month == _selectedDate.month && s.date.day == _selectedDate.day).length} lớp học hôm nay',
                           style: const TextStyle(

@@ -131,13 +131,25 @@ class _BranchListScreenState extends State<BranchListScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         deleteLabel: 'chi nhánh "${branch.name}"',
                         onDeleteConfirmed: () => _deleteBranch(branch.id),
-                        child: Card(
-                          margin: EdgeInsets.zero,
-                          child: ListTile(
-                            title: Text(branch.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            onTap: () => _showAddBranchDialog(branch),
-                            trailing: const Icon(Icons.edit, size: 20, color: AppColors.textSecondary),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 4),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: const Icon(Icons.location_city_rounded,
+                                color: AppColors.primary, size: 21),
                           ),
+                          title: Text(branch.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          onTap: () => _showAddBranchDialog(branch),
+                          trailing: const Icon(Icons.edit,
+                              size: 20, color: AppColors.textSecondary),
                         ),
                       );
                     },

@@ -428,7 +428,7 @@ class SalaryReportScreenState extends State<SalaryReportScreen> with WidgetsBind
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-      color: AppColors.primary,
+      color: AppColors.surface,
       width: double.infinity,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -436,13 +436,14 @@ class SalaryReportScreenState extends State<SalaryReportScreen> with WidgetsBind
           const Text(
             'Lương & Báo cáo',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
+              color: AppColors.textPrimary,
+              fontSize: 19,
               fontWeight: FontWeight.bold,
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.manage_accounts, color: Colors.white),
+            icon: const Icon(Icons.manage_accounts_rounded,
+                color: AppColors.primary),
             onPressed: () => _showProfileBottomSheet(context),
             tooltip: 'Cập nhật thông tin',
           ),
