@@ -10,6 +10,7 @@ class ExcelExportService {
     required Profile profile,
     required List<Session> sessions,
     required DateTime month,
+    required bool overwriteExisting,
   }) async {
     // Filter only COMPLETED sessions
     final completedSessions = sessions
@@ -118,25 +119,50 @@ class ExcelExportService {
 
     // Save and share
     final dir = await getApplicationDocumentsDirectory();
-    final orgName = profile.organizationName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '');
-    final teacherName = (profile.fullName ?? 'Giáo viên').replaceAll(RegExp(r'[<>:"/\\|?*]'), '');
     final mm = month.month.toString().padLeft(2, '0');
     final yyyy = month.year.toString();
-    final fileName = '$orgName - $teacherName - BÁO CÁO LƯƠNG THÁNG $mm - $yyyy.xlsx';
-    final filePath = '${dir.path}/$fileName';
 
     final fileBytes = excel.save();
     if (fileBytes == null) throw Exception('Không thể tạo file Excel');
 
-    final file = File(filePath);
+    final reportsDirectory = Directory('${dir.path}/ExcelReports');
+    await reportsDirectory.create(recursive: true);
+    final reportName = _reportFileName(profile, month);
+    final baseFile = File('${reportsDirectory.path}/$reportName');
+    var file = baseFile;
+    if (await baseFile.exists() && !overwriteExisting) {
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(RegExp(r'[-:.]'), '')
+          .substring(0, 18);
+      file = File('${reportsDirectory.path}/${reportName.replaceFirst('.xlsx', ' ($timestamp).xlsx')}');
+    }
     await file.writeAsBytes(fileBytes);
+    final savedFileName = file.uri.pathSegments.last;
 
     await Share.shareXFiles(
-      [XFile(filePath)],
-      subject: fileName,
+      [XFile(file.path)],
+      subject: savedFileName,
       text: 'Báo cáo lương tháng $mm/$yyyy',
     );
   }
+
+  Future<File> getReportFile({required Profile profile, required DateTime month}) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final reportsDirectory = Directory('${documents.path}/ExcelReports');
+    await reportsDirectory.create(recursive: true);
+    return File('${reportsDirectory.path}/${_reportFileName(profile, month)}');
+  }
+
+  String _reportFileName(Profile profile, DateTime month) {
+    final orgName = _safeFilePart(profile.organizationName);
+    final teacherName = _safeFilePart(profile.fullName ?? 'Giáo viên');
+    final mm = month.month.toString().padLeft(2, '0');
+    return '$orgName - $teacherName - BÁO CÁO LƯƠNG THÁNG $mm - ${month.year}.xlsx';
+  }
+
+  String _safeFilePart(String value) =>
+      value.replaceAll(RegExp(r'[<>:"/\\|?*]'), '').trim();
 
   void _setCell(Sheet sheet, int row, int col, dynamic value) {
     final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));

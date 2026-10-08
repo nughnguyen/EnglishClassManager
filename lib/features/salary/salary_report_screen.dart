@@ -101,10 +101,40 @@ class SalaryReportScreenState extends State<SalaryReportScreen> with WidgetsBind
       }
 
       final exporter = ExcelExportService();
+      final existingFile = await exporter.getReportFile(
+        profile: profile,
+        month: _currentMonth,
+      );
+      var overwriteExisting = false;
+      if (await existingFile.exists()) {
+        final choice = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Báo cáo đã tồn tại'),
+            content: Text(
+              'Đã có file ${existingFile.uri.pathSegments.last}. Bạn muốn ghi đè hay lưu thành file mới?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Lưu thành file mới'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Ghi đè'),
+              ),
+            ],
+          ),
+        );
+        if (choice == null) return;
+        overwriteExisting = choice;
+      }
       await exporter.exportSalaryReport(
         profile: profile,
         sessions: _sessions,
         month: _currentMonth,
+        overwriteExisting: overwriteExisting,
       );
     } catch (e) {
       if (mounted) {

@@ -46,23 +46,34 @@ class ScheduleScreenState extends State<ScheduleScreen> {
       // Schedule local notifications for pending sessions
       for (final s in sessions) {
         if (s.status == SessionStatus.pending) {
-          final parts = s.timeSlot.split('-');
-          if (parts.length == 2) {
-            final endParts = parts[1].trim().split(':');
-            if (endParts.length == 2) {
-              final h = int.tryParse(endParts[0]) ?? 0;
-              final m = int.tryParse(endParts[1]) ?? 0;
-              final endTime = DateTime(s.date.year, s.date.month, s.date.day, h, m);
-              if (endTime.isAfter(DateTime.now())) {
-                NotificationService().scheduleSessionEndNotification(
-                  id: s.id.hashCode.abs(),
-                  sessionId: s.id,
-                  sessionName: s.studentName,
-                  endTime: endTime,
-                );
-              }
-            }
+          final timeMatch = RegExp(
+            r'^\s*\d{1,2}:\d{2}\s*-\s*(\d{1,2}):(\d{2})\s*$',
+          ).firstMatch(s.timeSlot);
+          if (timeMatch == null) continue;
+
+          final hour = int.tryParse(timeMatch.group(1)!);
+          final minute = int.tryParse(timeMatch.group(2)!);
+          if (hour == null || minute == null || hour > 23 || minute > 59) {
+            continue;
           }
+
+          final endTime = DateTime(
+            s.date.year,
+            s.date.month,
+            s.date.day,
+            hour,
+            minute,
+          );
+          if (endTime.isAfter(DateTime.now())) {
+            await NotificationService().scheduleSessionEndNotification(
+              id: s.id.hashCode & 0x7fffffff,
+              sessionId: s.id,
+              sessionName: s.studentName,
+              endTime: endTime,
+            );
+          }
+        } else {
+          await NotificationService().cancelNotification(s.id.hashCode & 0x7fffffff);
         }
       }
     } catch (e) {

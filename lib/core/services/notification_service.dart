@@ -87,10 +87,25 @@ class NotificationService {
   }
 
   Future<bool?> requestPermissions() async {
-    return await _plugin
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final notificationPermission =
+        await android?.requestNotificationsPermission();
+    final canScheduleExact = await android?.canScheduleExactNotifications();
+    if (canScheduleExact == false) {
+      await android?.requestExactAlarmsPermission();
+    }
+    return notificationPermission;
+  }
+
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    final canScheduleExact = await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+        ?.canScheduleExactNotifications();
+    return canScheduleExact == false
+        ? AndroidScheduleMode.inexactAllowWhileIdle
+        : AndroidScheduleMode.exactAllowWhileIdle;
   }
 
   Future<void> scheduleSessionStartNotification({
@@ -113,7 +128,7 @@ class NotificationService {
       scheduledTime,
       NotificationDetails(android: details),
       payload: sessionId,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
@@ -139,7 +154,7 @@ class NotificationService {
       scheduledTime,
       NotificationDetails(android: details),
       payload: sessionId,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );

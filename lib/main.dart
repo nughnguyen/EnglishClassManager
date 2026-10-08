@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_config.dart';
 import 'core/constants/app_colors.dart';
 import 'core/services/notification_service.dart';
-import 'core/services/app_settings.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/verify_email_screen.dart';
 import 'features/schedule/schedule_screen.dart';
@@ -47,12 +46,9 @@ class EnglishClassManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-        valueListenable: appThemeMode,
-        builder: (context, themeMode, _) => MaterialApp(
+    return MaterialApp(
               title: 'English Class Manager',
               debugShowCheckedModeBanner: false,
-              themeMode: themeMode,
               theme: ThemeData(
                 useMaterial3: true,
                 colorScheme: ColorScheme.fromSeed(
@@ -96,9 +92,8 @@ class EnglishClassManagerApp extends StatelessWidget {
                   ),
                 ),
               ),
-              darkTheme: ThemeData.dark(useMaterial3: true),
               home: const _AuthGate(),
-            ));
+            );
   }
 }
 

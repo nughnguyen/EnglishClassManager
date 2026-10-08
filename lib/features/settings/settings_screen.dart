@@ -3,7 +3,6 @@ import 'package:shimmer/shimmer.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/supabase_service.dart';
-import '../../../core/services/app_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,7 +16,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   bool _notificationsEnabled = true;
   String _notificationSound = 'default';
-  bool _darkMode = false;
 
   @override
   void initState() {
@@ -30,14 +28,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final enabled = await _storage.read(key: 'notifications_enabled');
       final sound = await _storage.read(key: 'notification_sound');
-      final darkMode = await _storage.read(key: 'dark_mode');
       
       if (mounted) {
         setState(() {
           _notificationsEnabled = enabled != 'false';
           _notificationSound = sound == 'silent' ? 'silent' : 'default';
-          _darkMode = darkMode == 'true';
-          appThemeMode.value = _darkMode ? ThemeMode.dark : ThemeMode.light;
           _loading = false;
         });
       }
@@ -50,7 +45,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await _storage.write(key: 'notifications_enabled', value: _notificationsEnabled.toString());
       await _storage.write(key: 'notification_sound', value: _notificationSound);
-      await _storage.write(key: 'dark_mode', value: _darkMode.toString());
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,18 +102,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection(
               title: 'CÀI ĐẶT THÔNG BÁO',
               children: [
-                SwitchListTile(
-                  title: const Text('Giao diện tối'),
-                  value: _darkMode,
-                  activeColor: AppColors.primary,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (value) {
-                    setState(() => _darkMode = value);
-                    appThemeMode.value = value ? ThemeMode.dark : ThemeMode.light;
-                    _saveSettings();
-                  },
-                ),
-                const Divider(),
                 SwitchListTile(
                   title: const Text('Bật thông báo ứng dụng', style: TextStyle(fontWeight: FontWeight.w500)),
                   subtitle: const Text('Nhận thông báo khi ca học bắt đầu và kết thúc', style: TextStyle(fontSize: 12)),
