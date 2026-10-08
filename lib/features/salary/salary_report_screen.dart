@@ -41,12 +41,15 @@ class SalaryReportScreenState extends State<SalaryReportScreen> with WidgetsBind
     }
   }
 
-  Future<void> loadData({bool showLoading = true}) async {
-    if (showLoading) {
+  Future<void> loadData({bool showLoading = true, bool forceRefresh = false}) async {
+    if (showLoading && _sessions.isEmpty) {
       setState(() => _loading = true);
     }
     try {
-      final sessions = await SupabaseService.instance.getSessionsForMonth(_currentMonth);
+      final sessions = await SupabaseService.instance.getSessionsForMonth(
+        _currentMonth,
+        forceRefresh: forceRefresh,
+      );
       if (mounted) setState(() => _sessions = sessions);
     } catch (e) {
       if (mounted) {
@@ -236,7 +239,7 @@ class SalaryReportScreenState extends State<SalaryReportScreen> with WidgetsBind
                     ],
                   )
                 : RefreshIndicator(
-                    onRefresh: () => loadData(showLoading: false),
+                    onRefresh: () => loadData(showLoading: false, forceRefresh: true),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),

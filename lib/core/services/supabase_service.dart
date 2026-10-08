@@ -10,12 +10,74 @@ import '../../core/utils/date_utils.dart';
 class SupabaseService {
   final SupabaseClient _client;
 
+  static final Map<String, Profile?> _profileCache = {};
+  static final Map<String, Future<Profile?>> _profileRequests = {};
+  static final Map<String, List<Branch>> _branchCache = {};
+  static final Map<String, Future<List<Branch>>> _branchRequests = {};
+  static final Map<String, List<Program>> _programCache = {};
+  static final Map<String, Future<List<Program>>> _programRequests = {};
+  static final Map<String, List<Student>> _studentCache = {};
+  static final Map<String, Future<List<Student>>> _studentRequests = {};
+  static final Map<String, List<Session>> _sessionCache = {};
+  static final Map<String, Future<List<Session>>> _sessionRequests = {};
+  static final Map<String, int> _cacheVersions = {};
+
   SupabaseService(this._client);
 
   static SupabaseService get instance =>
       SupabaseService(Supabase.instance.client);
 
   String get _userId => _client.auth.currentUser!.id;
+
+  String _cacheKey(String type, [String? suffix]) =>
+      '$_userId:$type${suffix == null ? '' : ':$suffix'}';
+
+  int _cacheVersion(String key) => _cacheVersions[key] ?? 0;
+
+  void _bumpCacheVersion(String key) {
+    _cacheVersions[key] = _cacheVersion(key) + 1;
+  }
+
+  void _invalidateProfile() {
+    final key = _cacheKey('profile');
+    _bumpCacheVersion(key);
+    _profileCache.remove(key);
+    _profileRequests.remove(key);
+  }
+
+  void _invalidateBranches() {
+    final key = _cacheKey('branches');
+    _bumpCacheVersion(key);
+    _branchCache.remove(key);
+    _branchRequests.remove(key);
+  }
+
+  void _invalidatePrograms() {
+    final key = _cacheKey('programs');
+    _bumpCacheVersion(key);
+    _programCache.remove(key);
+    _programRequests.remove(key);
+  }
+
+  void _invalidateStudents() {
+    final key = _cacheKey('students');
+    _bumpCacheVersion(key);
+    _studentCache.remove(key);
+    _studentRequests.remove(key);
+    _invalidateSessions();
+  }
+
+  void _invalidateSessions() {
+    final prefix = _cacheKey('sessions:');
+    for (final key in _sessionCache.keys.where((key) => key.startsWith(prefix))) {
+      _bumpCacheVersion(key);
+    }
+    for (final key in _sessionRequests.keys.where((key) => key.startsWith(prefix))) {
+      _bumpCacheVersion(key);
+    }
+    _sessionCache.removeWhere((key, _) => key.startsWith(prefix));
+    _sessionRequests.removeWhere((key, _) => key.startsWith(prefix));
+  }
 
   // ============================================================
   // AUTH
@@ -44,6 +106,18 @@ class SupabaseService {
   }
 
   Future<void> signOut() async {
+    final userId = _userId;
+    _profileCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    _profileRequests.removeWhere((key, _) => key.startsWith('$userId:'));
+    _branchCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    _branchRequests.removeWhere((key, _) => key.startsWith('$userId:'));
+    _programCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    _programRequests.removeWhere((key, _) => key.startsWith('$userId:'));
+    _studentCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    _studentRequests.removeWhere((key, _) => key.startsWith('$userId:'));
+    _sessionCache.removeWhere((key, _) => key.startsWith('$userId:'));
+    _sessionRequests.removeWhere((key, _) => key.startsWith('$userId:'));
+    _cacheVersions.removeWhere((key, _) => key.startsWith('$userId:'));
     await _client.auth.signOut();
   }
 
@@ -55,7 +129,32 @@ class SupabaseService {
   // PROFILE
   // ============================================================
 
-  Future<Profile?> getProfile() async {
+  Future<Profile?> getProfile({bool forceRefresh = false}) async {
+    final key = _cacheKey('profile');
+    if (forceRefresh) {
+      _bumpCacheVersion(key);
+      _profileCache.remove(key);
+      _profileRequests.remove(key);
+    }
+    if (_profileCache.containsKey(key)) return _profileCache[key];
+    final pending = _profileRequests[key];
+    if (pending != null) return pending;
+
+    final version = _cacheVersion(key);
+    final request = _fetchProfile();
+    _profileRequests[key] = request;
+    try {
+      final profile = await request;
+      if (profile != null && _cacheVersion(key) == version) {
+        _profileCache[key] = profile;
+      }
+      return profile;
+    } finally {
+      if (identical(_profileRequests[key], request)) _profileRequests.remove(key);
+    }
+  }
+
+  Future<Profile?> _fetchProfile() async {
     try {
       final data =
           await _client.from('profiles').select().eq('id', _userId).single();
@@ -76,13 +175,38 @@ class SupabaseService {
       'salary_note': profile.salaryNote,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
+    _invalidateProfile();
   }
 
   // ============================================================
   // BRANCHES
   // ============================================================
 
-  Future<List<Branch>> getBranches() async {
+  Future<List<Branch>> getBranches({bool forceRefresh = false}) async {
+    final key = _cacheKey('branches');
+    if (forceRefresh) {
+      _bumpCacheVersion(key);
+      _branchCache.remove(key);
+      _branchRequests.remove(key);
+    }
+    final cached = _branchCache[key];
+    if (cached != null) return List.of(cached);
+    final pending = _branchRequests[key];
+    if (pending != null) return List.of(await pending);
+
+    final version = _cacheVersion(key);
+    final request = _fetchBranches();
+    _branchRequests[key] = request;
+    try {
+      final branches = await request;
+      if (_cacheVersion(key) == version) _branchCache[key] = branches;
+      return List.of(branches);
+    } finally {
+      if (identical(_branchRequests[key], request)) _branchRequests.remove(key);
+    }
+  }
+
+  Future<List<Branch>> _fetchBranches() async {
     final data = await _client
         .from('branches')
         .select()
@@ -100,22 +224,52 @@ class SupabaseService {
         })
         .select()
         .single();
+    _invalidateBranches();
+    _invalidateSessions();
     return Branch.fromJson(data);
   }
 
   Future<void> updateBranch(String id, String name) async {
     await _client.from('branches').update({'name': name}).eq('id', id);
+    _invalidateBranches();
+    _invalidateSessions();
   }
 
   Future<void> deleteBranch(String id) async {
     await _client.from('branches').delete().eq('id', id);
+    _invalidateBranches();
+    _invalidateSessions();
   }
 
   // ============================================================
   // PROGRAMS
   // ============================================================
 
-  Future<List<Program>> getPrograms() async {
+  Future<List<Program>> getPrograms({bool forceRefresh = false}) async {
+    final key = _cacheKey('programs');
+    if (forceRefresh) {
+      _bumpCacheVersion(key);
+      _programCache.remove(key);
+      _programRequests.remove(key);
+    }
+    final cached = _programCache[key];
+    if (cached != null) return List.of(cached);
+    final pending = _programRequests[key];
+    if (pending != null) return List.of(await pending);
+
+    final version = _cacheVersion(key);
+    final request = _fetchPrograms();
+    _programRequests[key] = request;
+    try {
+      final programs = await request;
+      if (_cacheVersion(key) == version) _programCache[key] = programs;
+      return List.of(programs);
+    } finally {
+      if (identical(_programRequests[key], request)) _programRequests.remove(key);
+    }
+  }
+
+  Future<List<Program>> _fetchPrograms() async {
     final data = await _client
         .from('programs')
         .select()
@@ -139,6 +293,8 @@ class SupabaseService {
         })
         .select()
         .single();
+    _invalidatePrograms();
+    _invalidateSessions();
     return Program.fromJson(data);
   }
 
@@ -148,17 +304,45 @@ class SupabaseService {
       'default_hourly_rate': program.defaultHourlyRate,
       'color_hex': program.colorHex,
     }).eq('id', program.id);
+    _invalidatePrograms();
+    _invalidateSessions();
   }
 
   Future<void> deleteProgram(String id) async {
     await _client.from('programs').delete().eq('id', id);
+    _invalidatePrograms();
+    _invalidateSessions();
   }
 
   // ============================================================
   // STUDENTS
   // ============================================================
 
-  Future<List<Student>> getStudents() async {
+  Future<List<Student>> getStudents({bool forceRefresh = false}) async {
+    final key = _cacheKey('students');
+    if (forceRefresh) {
+      _bumpCacheVersion(key);
+      _studentCache.remove(key);
+      _studentRequests.remove(key);
+    }
+    final cached = _studentCache[key];
+    if (cached != null) return List.of(cached);
+    final pending = _studentRequests[key];
+    if (pending != null) return List.of(await pending);
+
+    final version = _cacheVersion(key);
+    final request = _fetchStudents();
+    _studentRequests[key] = request;
+    try {
+      final students = await request;
+      if (_cacheVersion(key) == version) _studentCache[key] = students;
+      return List.of(students);
+    } finally {
+      if (identical(_studentRequests[key], request)) _studentRequests.remove(key);
+    }
+  }
+
+  Future<List<Student>> _fetchStudents() async {
     final data = await _client
         .from('students')
         .select()
@@ -182,6 +366,7 @@ class SupabaseService {
         })
         .select()
         .single();
+    _invalidateStudents();
     return Student.fromJson(data);
   }
 
@@ -195,21 +380,66 @@ class SupabaseService {
       'start_time': student.startTime,
       'end_time': student.endTime,
     }).eq('id', student.id);
+    _invalidateStudents();
   }
 
-  Future<void> deleteStudent(String id) async {
+  Future<List<String>> deleteStudent(String id) async {
+    final linkedSessions = await _client
+        .from('sessions')
+        .select('id')
+        .eq('student_id', id)
+        .eq('user_id', _userId);
+    final deletedSessionIds = linkedSessions
+        .map<String>((row) => row['id'].toString())
+        .toList();
+
     // Xóa tất cả các ca học liên quan đến học sinh này
-    await _client.from('sessions').delete().eq('student_id', id);
+    await _client
+        .from('sessions')
+        .delete()
+        .eq('student_id', id)
+        .eq('user_id', _userId);
 
     // Xóa học sinh
     await _client.from('students').delete().eq('id', id);
+    _invalidateStudents();
+    _invalidateSessions();
+    return deletedSessionIds;
   }
 
   // ============================================================
   // SESSIONS
   // ============================================================
 
-  Future<List<Session>> getSessionsForMonth(DateTime month) async {
+  Future<List<Session>> getSessionsForMonth(
+    DateTime month, {
+    bool forceRefresh = false,
+  }) async {
+    final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+    final key = _cacheKey('sessions', monthKey);
+    if (forceRefresh) {
+      _bumpCacheVersion(key);
+      _sessionCache.remove(key);
+      _sessionRequests.remove(key);
+    }
+    final cached = _sessionCache[key];
+    if (cached != null) return List.of(cached);
+    final pending = _sessionRequests[key];
+    if (pending != null) return List.of(await pending);
+
+    final version = _cacheVersion(key);
+    final request = _fetchSessionsForMonth(month);
+    _sessionRequests[key] = request;
+    try {
+      final sessions = await request;
+      if (_cacheVersion(key) == version) _sessionCache[key] = sessions;
+      return List.of(sessions);
+    } finally {
+      if (identical(_sessionRequests[key], request)) _sessionRequests.remove(key);
+    }
+  }
+
+  Future<List<Session>> _fetchSessionsForMonth(DateTime month) async {
     final start = AppDateUtils.startOfMonth(month);
     final end = AppDateUtils.endOfMonth(month);
     final data = await _client
@@ -276,7 +506,7 @@ class SupabaseService {
       }
 
       if (missingSessions.isNotEmpty) {
-        await bulkCreateSessions(missingSessions);
+        await bulkCreateSessions(missingSessions, invalidateCache: false);
         // Tải lại danh sách ca học kèm ID từ database
         final newData = await _client
             .from('sessions')
@@ -323,9 +553,13 @@ class SupabaseService {
       'is_makeup': session.isMakeup,
       'color_hex': session.colorHex,
     });
+    _invalidateSessions();
   }
 
-  Future<void> bulkCreateSessions(List<Session> sessions) async {
+  Future<void> bulkCreateSessions(
+    List<Session> sessions, {
+    bool invalidateCache = true,
+  }) async {
     if (sessions.isEmpty) return;
     final data = sessions
         .map((s) => {
@@ -346,16 +580,19 @@ class SupabaseService {
             })
         .toList();
     await _client.from('sessions').insert(data);
+    if (invalidateCache) _invalidateSessions();
   }
 
   Future<void> updateSessionStatus(String id, SessionStatus status) async {
     await _client.from('sessions').update({
       'status': status.value,
     }).eq('id', id);
+    _invalidateSessions();
   }
 
   Future<void> deleteSession(String id) async {
     await _client.from('sessions').delete().eq('id', id);
+    _invalidateSessions();
   }
 
   // ============================================================

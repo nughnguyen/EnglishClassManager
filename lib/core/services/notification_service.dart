@@ -164,6 +164,16 @@ class NotificationService {
     await _plugin.cancel(id);
   }
 
+  Future<void> cancelNotificationsForSessions(Set<String> sessionIds) async {
+    if (sessionIds.isEmpty) return;
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final request in pending) {
+      if (request.payload != null && sessionIds.contains(request.payload)) {
+        await _plugin.cancel(request.id);
+      }
+    }
+  }
+
   Future<void> cancelAllNotifications() async {
     await _plugin.cancelAll();
   }

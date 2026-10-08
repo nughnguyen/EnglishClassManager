@@ -6,6 +6,7 @@ import '../../../core/models/student.dart';
 import '../../../core/models/branch.dart';
 import '../../../core/models/program.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
 import 'add_student_screen.dart';
@@ -36,12 +37,12 @@ class StudentListScreenState extends State<StudentListScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
+  Future<void> _loadData({bool forceRefresh = false}) async {
+    if (_students.isEmpty) setState(() => _loading = true);
     try {
-      final students = await SupabaseService.instance.getStudents();
-      final branches = await SupabaseService.instance.getBranches();
-      final programs = await SupabaseService.instance.getPrograms();
+      final students = await SupabaseService.instance.getStudents(forceRefresh: forceRefresh);
+      final branches = await SupabaseService.instance.getBranches(forceRefresh: forceRefresh);
+      final programs = await SupabaseService.instance.getPrograms(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _students = students;
@@ -65,11 +66,13 @@ class StudentListScreenState extends State<StudentListScreen> {
 
   Future<void> _deleteStudent(String id) async {
     try {
-      await SupabaseService.instance.deleteStudent(id);
+      final deletedSessionIds = await SupabaseService.instance.deleteStudent(id);
+      await NotificationService()
+          .cancelNotificationsForSessions(deletedSessionIds.toSet());
       setState(() {
         _students.removeWhere((s) => s.id == id);
       });
-      scheduleKey.currentState?.loadSessions();
+      await scheduleKey.currentState?.loadSessions(forceRefresh: true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +147,7 @@ class StudentListScreenState extends State<StudentListScreen> {
                   : _filteredStudents.isEmpty
                       ? _buildEmptyState()
                       : RefreshIndicator(
-                          onRefresh: _loadData,
+                          onRefresh: () => _loadData(forceRefresh: true),
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
@@ -183,7 +186,7 @@ class StudentListScreenState extends State<StudentListScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'H?c sinh',
+            'Học sinh',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -416,7 +419,7 @@ class _StudentCard extends StatelessWidget {
                       Icon(Icons.access_time, size: 11, color: color),
                       const SizedBox(width: 4),
                       Text(
-                        '$days ${student.startTime != null ? "� ${student.startTime}" : ""}',
+                        '$days ${student.startTime != null ? "· ${student.startTime}" : ""}',
                         style: TextStyle(
                           fontSize: 11,
                           color: color,

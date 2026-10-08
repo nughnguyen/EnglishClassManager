@@ -23,10 +23,10 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
     _loadPrograms();
   }
 
-  Future<void> _loadPrograms() async {
-    setState(() => _loading = true);
+  Future<void> _loadPrograms({bool forceRefresh = false}) async {
+    if (_programs.isEmpty) setState(() => _loading = true);
     try {
-      final programs = await SupabaseService.instance.getPrograms();
+      final programs = await SupabaseService.instance.getPrograms(forceRefresh: forceRefresh);
       if (mounted) setState(() => _programs = programs);
     } catch (e) {
       if (mounted) {
@@ -148,7 +148,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
           : _programs.isEmpty
               ? const Center(child: Text('Chưa có CTĐT nào', style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
-                  onRefresh: _loadPrograms,
+                  onRefresh: () => _loadPrograms(forceRefresh: true),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _programs.length,

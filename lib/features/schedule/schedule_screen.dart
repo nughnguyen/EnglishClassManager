@@ -36,11 +36,13 @@ class ScheduleScreenState extends State<ScheduleScreen> {
     super.dispose();
   }
 
-  Future<void> loadSessions({bool showLoading = false}) async {
-    if (showLoading) setState(() => _loading = true);
+  Future<void> loadSessions({bool showLoading = false, bool forceRefresh = false}) async {
+    if (showLoading && _monthSessions.isEmpty) setState(() => _loading = true);
     try {
-      final sessions =
-          await SupabaseService.instance.getSessionsForMonth(_currentMonth);
+      final sessions = await SupabaseService.instance.getSessionsForMonth(
+        _currentMonth,
+        forceRefresh: forceRefresh,
+      );
       if (mounted) setState(() => _monthSessions = sessions);
 
       // Schedule local notifications for pending sessions
@@ -530,7 +532,7 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                   ? _buildSessionSkeleton()
                   : _selectedDaySessions.isEmpty
                       ? RefreshIndicator(
-                          onRefresh: loadSessions,
+                          onRefresh: () => loadSessions(forceRefresh: true),
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -559,7 +561,7 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: loadSessions,
+                          onRefresh: () => loadSessions(forceRefresh: true),
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
                             itemCount: _selectedDaySessions.length,

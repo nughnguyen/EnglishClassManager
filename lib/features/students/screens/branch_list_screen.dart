@@ -22,10 +22,10 @@ class _BranchListScreenState extends State<BranchListScreen> {
     _loadBranches();
   }
 
-  Future<void> _loadBranches() async {
-    setState(() => _loading = true);
+  Future<void> _loadBranches({bool forceRefresh = false}) async {
+    if (_branches.isEmpty) setState(() => _loading = true);
     try {
-      final branches = await SupabaseService.instance.getBranches();
+      final branches = await SupabaseService.instance.getBranches(forceRefresh: forceRefresh);
       if (mounted) setState(() => _branches = branches);
     } catch (e) {
       if (mounted) {
@@ -121,7 +121,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
           : _branches.isEmpty
               ? const Center(child: Text('Chưa có chi nhánh nào', style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
-                  onRefresh: _loadBranches,
+                  onRefresh: () => _loadBranches(forceRefresh: true),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _branches.length,
