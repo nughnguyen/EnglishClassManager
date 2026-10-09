@@ -263,6 +263,45 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
     }
   }
 
+  Future<void> _deleteExportFile(File file) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa file báo cáo?'),
+        content: Text(
+            'File “${file.uri.pathSegments.last}” sẽ bị xóa khỏi thiết bị.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true) return;
+    try {
+      await ExcelExportService().deleteReport(file);
+      await _loadExportHistory();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa file báo cáo.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Không xóa được file: $e'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   Widget _buildExportHistory() {
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -344,8 +383,12 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
                                 ],
                               ),
                             ),
-                            const Icon(Icons.open_in_new_rounded,
-                                color: AppColors.primary, size: 20),
+                            IconButton(
+                              tooltip: 'Xóa file',
+                              onPressed: () => _deleteExportFile(file),
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  color: AppColors.error, size: 21),
+                            ),
                           ],
                         ),
                       ),
@@ -353,6 +396,35 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
                   ),
                 )),
         ],
+      ),
+    );
+  }
+
+  Widget _salaryMetric(IconData icon, String label) {
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(.13),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 15),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -460,63 +532,87 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [
-                                  AppColors.primaryLight,
-                                  AppColors.primary
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF142D55), Color(0xFF2879C7)],
+                                begin: Alignment.bottomLeft,
+                                end: Alignment.topRight,
                               ),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(24),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppColors.primary.withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
+                                  color: AppColors.primary.withOpacity(0.22),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Stack(
                               children: [
-                                const Text(
-                                  'TỔNG LƯƠNG THÁNG',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2,
-                                  ),
+                                Positioned(
+                                  right: -8,
+                                  top: -8,
+                                  child: Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      size: 82,
+                                      color: Colors.white.withOpacity(.09)),
                                 ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      CurrencyFormatter.format(_totalSalary),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 30,
-                                        fontWeight: FontWeight.bold,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(9),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.white.withOpacity(.15),
+                                            borderRadius:
+                                                BorderRadius.circular(13),
+                                          ),
+                                          child: const Icon(
+                                              Icons.payments_rounded,
+                                              color: Colors.white,
+                                              size: 19),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text('TỔNG LƯƠNG THÁNG',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 1,
+                                            )),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 18),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          CurrencyFormatter.format(
+                                              _totalSalary),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -.5,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    '${_completedSessions.length} ca đã hoàn thành / ${_sessions.length} ca tổng',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 12),
-                                  ),
+                                    const SizedBox(height: 18),
+                                    Row(
+                                      children: [
+                                        _salaryMetric(
+                                            Icons.check_circle_rounded,
+                                            '${_completedSessions.length} ca hoàn thành'),
+                                        const SizedBox(width: 8),
+                                        _salaryMetric(Icons.event_note_rounded,
+                                            '${_sessions.length} ca trong tháng'),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

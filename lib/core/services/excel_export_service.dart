@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/profile.dart';
 import '../models/session.dart';
@@ -222,7 +223,7 @@ class ExcelExportService {
     final bytes = excel.save();
     if (bytes == null) throw Exception('Không thể tạo file Excel.');
 
-    final directory = await _getReportsDirectory();
+    final directory = await _getReportsDirectory(requestPermission: true);
     final reportName = _reportFileName(profile, month);
     final baseFile = File('${directory.path}/$reportName');
     var savedFile = baseFile;
@@ -241,6 +242,7 @@ class ExcelExportService {
 
   Future<List<File>> listReports() async {
     final directory = await _getReportsDirectory();
+    if (!await directory.exists()) return [];
     final files = directory
         .listSync(followLinks: false)
         .whereType<File>()
@@ -254,6 +256,18 @@ class ExcelExportService {
     return datedFiles.map((entry) => entry.key).toList();
   }
 
+  Future<void> deleteReport(File file) async {
+    final directory = await _getReportsDirectory();
+    final normalizedDirectory =
+        '${directory.absolute.path}${Platform.pathSeparator}';
+    final normalizedFile = file.absolute.path;
+    if (!normalizedFile.startsWith(normalizedDirectory) ||
+        !normalizedFile.toLowerCase().endsWith('.xlsx')) {
+      throw ArgumentError('Chỉ có thể xóa file Excel trong thư mục báo cáo.');
+    }
+    if (await file.exists()) await file.delete();
+  }
+
   Future<File> getReportFile({
     required Profile profile,
     required DateTime month,
@@ -262,10 +276,39 @@ class ExcelExportService {
     return File('${directory.path}/${_reportFileName(profile, month)}');
   }
 
-  Future<Directory> _getReportsDirectory() async {
-    final documents = await getApplicationDocumentsDirectory();
-    final directory = Directory('${documents.path}/$_reportsFolderName');
-    await directory.create(recursive: true);
+  Future<Directory> _getReportsDirectory(
+      {bool requestPermission = false}) async {
+    late final Directory directory;
+    if (Platform.isAndroid) {
+      var permission = await Permission.manageExternalStorage.status;
+      if (!permission.isGranted && requestPermission) {
+        permission = await Permission.manageExternalStorage.request();
+      }
+      if (!permission.isGranted && requestPermission) {
+        throw FileSystemException(
+          'Cần cấp quyền quản lý tệp để lưu báo cáo vào Documents/ExcelReports.',
+        );
+      }
+      final external = await getExternalStorageDirectory();
+      if (external == null) {
+        throw FileSystemException('Không tìm thấy bộ nhớ ngoài của thiết bị.');
+      }
+      final marker =
+          '${Platform.pathSeparator}Android${Platform.pathSeparator}';
+      final markerIndex = external.path.indexOf(marker);
+      final storageRoot = markerIndex < 0
+          ? external.path
+          : external.path.substring(0, markerIndex);
+      directory = Directory(
+        '$storageRoot${Platform.pathSeparator}Documents${Platform.pathSeparator}$_reportsFolderName',
+      );
+    } else {
+      final documents = await getApplicationDocumentsDirectory();
+      directory = Directory('${documents.path}/$_reportsFolderName');
+    }
+    if (requestPermission || !Platform.isAndroid) {
+      await directory.create(recursive: true);
+    }
     return directory;
   }
 

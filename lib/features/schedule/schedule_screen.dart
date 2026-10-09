@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
@@ -22,21 +24,27 @@ class ScheduleScreenState extends State<ScheduleScreen> {
   List<Session> _monthSessions = [];
   bool _loading = true;
   final ScrollController _rulerController = ScrollController();
+  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
     loadSessions();
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
   }
 
   @override
   void dispose() {
     _rulerController.dispose();
+    _clockTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> loadSessions({bool showLoading = false, bool forceRefresh = false}) async {
+  Future<void> loadSessions(
+      {bool showLoading = false, bool forceRefresh = false}) async {
     if (showLoading && _monthSessions.isEmpty) setState(() => _loading = true);
     try {
       final sessions = await SupabaseService.instance.getSessionsForMonth(
@@ -75,7 +83,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
             );
           }
         } else {
-          await NotificationService().cancelNotification(s.id.hashCode & 0x7fffffff);
+          await NotificationService()
+              .cancelNotification(s.id.hashCode & 0x7fffffff);
         }
       }
     } catch (e) {
@@ -86,7 +95,9 @@ class ScheduleScreenState extends State<ScheduleScreen> {
             title: const Text('Lỗi đồng bộ dữ liệu'),
             content: Text(e.toString()),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng'))
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'))
             ],
           ),
         );
@@ -104,16 +115,21 @@ class ScheduleScreenState extends State<ScheduleScreen> {
     try {
       Session? session = _findSession(_monthSessions, sessionId);
       if (session == null) {
-        final monthSessions = await SupabaseService.instance.getSessionsForMonth(DateTime.now());
+        final monthSessions =
+            await SupabaseService.instance.getSessionsForMonth(DateTime.now());
         session = _findSession(monthSessions, sessionId);
         if (session == null) {
           for (var offset = 1; offset <= 12 && session == null; offset++) {
-            final month = DateTime(DateTime.now().year, DateTime.now().month - offset);
-            final olderSessions = await SupabaseService.instance.getSessionsForMonth(month);
+            final month =
+                DateTime(DateTime.now().year, DateTime.now().month - offset);
+            final olderSessions =
+                await SupabaseService.instance.getSessionsForMonth(month);
             session = _findSession(olderSessions, sessionId);
             if (session == null) {
-              final futureMonth = DateTime(DateTime.now().year, DateTime.now().month + offset);
-              final futureSessions = await SupabaseService.instance.getSessionsForMonth(futureMonth);
+              final futureMonth =
+                  DateTime(DateTime.now().year, DateTime.now().month + offset);
+              final futureSessions = await SupabaseService.instance
+                  .getSessionsForMonth(futureMonth);
               session = _findSession(futureSessions, sessionId);
             }
           }
@@ -122,7 +138,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
       if (session == null || !mounted) return;
       final selectedSession = session;
       setState(() {
-        _currentMonth = DateTime(selectedSession.date.year, selectedSession.date.month);
+        _currentMonth =
+            DateTime(selectedSession.date.year, selectedSession.date.month);
         _selectedDate = selectedSession.date;
       });
       await loadSessions();
@@ -132,7 +149,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
       });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không tìm thấy ca học trong thông báo.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Không tìm thấy ca học trong thông báo.')));
       }
     }
   }
@@ -197,15 +215,33 @@ class ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   List<Session> get _selectedDaySessions {
-    print('DEBUG-UI: _monthSessions length = ${_monthSessions.length}');
-    final filtered = _monthSessions.where((s) {
-      final same = AppDateUtils.isSameDay(s.date, _selectedDate);
-      print('DEBUG-UI: comparing session date ${s.date} (day: ${s.date.day}) with _selectedDate $_selectedDate (day: ${_selectedDate.day}) -> match: $same');
-      return same;
-    }).toList();
-    print('DEBUG-UI: _selectedDaySessions length = ${filtered.length}');
-    return filtered;
+    return _monthSessions
+        .where((session) => AppDateUtils.isSameDay(session.date, _selectedDate))
+        .toList();
   }
+
+  bool _isSessionOngoing(Session session) {
+    final now = DateTime.now();
+    if (session.status != SessionStatus.pending ||
+        !AppDateUtils.isSameDay(session.date, now)) {
+      return false;
+    }
+    final match = RegExp(
+      r'^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$',
+    ).firstMatch(session.timeSlot);
+    if (match == null) return false;
+    final values =
+        List.generate(4, (index) => int.tryParse(match.group(index + 1)!));
+    if (values.any((value) => value == null)) return false;
+    final start =
+        DateTime(now.year, now.month, now.day, values[0]!, values[1]!);
+    var end = DateTime(now.year, now.month, now.day, values[2]!, values[3]!);
+    if (end.isBefore(start)) end = end.add(const Duration(days: 1));
+    return !now.isBefore(start) && now.isBefore(end);
+  }
+
+  List<Session> get _ongoingSessions =>
+      _selectedDaySessions.where(_isSessionOngoing).toList();
 
   Map<int, List<String>> get _dotsByDay {
     final Map<int, List<String>> result = {};
@@ -532,7 +568,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                               SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.4,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.4,
                                 child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -540,7 +577,8 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                       Icon(
                                         Icons.event_available_rounded,
                                         size: 56,
-                                        color: AppColors.textSecondary.withOpacity(0.4),
+                                        color: AppColors.textSecondary
+                                            .withOpacity(0.4),
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
@@ -559,9 +597,41 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                           onRefresh: () => loadSessions(forceRefresh: true),
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: _selectedDaySessions.length,
+                            itemCount: _selectedDaySessions.length +
+                                (_ongoingSessions.isNotEmpty ? 1 : 0),
                             itemBuilder: (context, i) {
-                              final session = _selectedDaySessions[i];
+                              if (_ongoingSessions.isNotEmpty && i == 0) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 9),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success.withOpacity(.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.auto_awesome_rounded,
+                                            color: AppColors.success, size: 16),
+                                        const SizedBox(width: 7),
+                                        Expanded(
+                                          child: Text(
+                                            'Các lớp học đang diễn ra: ${_ongoingSessions.map((session) => session.studentName).join(', ')}',
+                                            style: const TextStyle(
+                                              color: AppColors.success,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                              final session = _selectedDaySessions[
+                                  i - (_ongoingSessions.isNotEmpty ? 1 : 0)];
                               return SwipeableActionCard(
                                 key: ValueKey(session.id),
                                 margin: const EdgeInsets.only(bottom: 8),
@@ -571,7 +641,10 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                 onEdit: () => _onEditSession(session),
                                 child: GestureDetector(
                                   onTap: () => _showActionBottomSheet(session),
-                                  child: SessionCard(session: session),
+                                  child: SessionCard(
+                                    session: session,
+                                    isOngoing: _isSessionOngoing(session),
+                                  ),
                                 ),
                               );
                             },
