@@ -10,10 +10,10 @@ class ProgramListScreen extends StatefulWidget {
   const ProgramListScreen({super.key});
 
   @override
-  State<ProgramListScreen> createState() => _ProgramListScreenState();
+  State<ProgramListScreen> createState() => ProgramListScreenState();
 }
 
-class _ProgramListScreenState extends State<ProgramListScreen> {
+class ProgramListScreenState extends State<ProgramListScreen> {
   List<Program> _programs = [];
   bool _loading = true;
 
@@ -26,12 +26,15 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
   Future<void> _loadPrograms({bool forceRefresh = false}) async {
     if (_programs.isEmpty) setState(() => _loading = true);
     try {
-      final programs = await SupabaseService.instance.getPrograms(forceRefresh: forceRefresh);
+      final programs = await SupabaseService.instance
+          .getPrograms(forceRefresh: forceRefresh);
       if (mounted) setState(() => _programs = programs);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải danh sách: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Lỗi tải danh sách: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -46,7 +49,9 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xóa CTĐT: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Lỗi xóa CTĐT: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -54,8 +59,8 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
 
   void _showAddProgramDialog([Program? program]) {
     final nameCtrl = TextEditingController(text: program?.name);
-    final rateCtrl = TextEditingController(text: program?.defaultHourlyRate.toStringAsFixed(0));
-    String colorHex = program?.colorHex ?? '#3D5AFE';
+    final rateCtrl = TextEditingController(
+        text: program?.defaultHourlyRate.toStringAsFixed(0));
     bool isLoading = false;
 
     showDialog(
@@ -75,7 +80,8 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: rateCtrl,
-                  decoration: const InputDecoration(labelText: 'Mức lương/giờ (VND)'),
+                  decoration:
+                      const InputDecoration(labelText: 'Mức lương/giờ (VND)'),
                   keyboardType: TextInputType.number,
                 ),
               ],
@@ -94,7 +100,7 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                       final rateStr = rateCtrl.text.trim();
                       if (name.isEmpty || rateStr.isEmpty) return;
                       final rate = double.tryParse(rateStr) ?? 0;
-                      
+
                       setState(() => isLoading = true);
                       try {
                         if (program == null) {
@@ -117,7 +123,9 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
+                            SnackBar(
+                                content: Text('Lỗi: $e'),
+                                backgroundColor: AppColors.error),
                           );
                         }
                         setState(() => isLoading = false);
@@ -125,7 +133,9 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
                     },
               child: isLoading
                   ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Lưu'),
             ),
           ],
@@ -134,19 +144,18 @@ class _ProgramListScreenState extends State<ProgramListScreen> {
     );
   }
 
+  void openAddProgram() => _showAddProgramDialog();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddProgramDialog(),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
       body: _loading
           ? _buildSkeleton()
           : _programs.isEmpty
-              ? const Center(child: Text('Chưa có CTĐT nào', style: TextStyle(color: AppColors.textSecondary)))
+              ? const Center(
+                  child: Text('Chưa có CTĐT nào',
+                      style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
                   onRefresh: () => _loadPrograms(forceRefresh: true),
                   child: ListView.builder(

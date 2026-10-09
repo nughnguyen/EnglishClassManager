@@ -9,6 +9,7 @@ import '../../../core/services/supabase_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
+import '../../../widgets/form_bottom_sheet.dart';
 import 'add_student_screen.dart';
 
 class StudentListScreen extends StatefulWidget {
@@ -37,12 +38,17 @@ class StudentListScreenState extends State<StudentListScreen> {
     _loadData();
   }
 
+  void openAddStudent() => _navigateToAdd();
+
   Future<void> _loadData({bool forceRefresh = false}) async {
     if (_students.isEmpty) setState(() => _loading = true);
     try {
-      final students = await SupabaseService.instance.getStudents(forceRefresh: forceRefresh);
-      final branches = await SupabaseService.instance.getBranches(forceRefresh: forceRefresh);
-      final programs = await SupabaseService.instance.getPrograms(forceRefresh: forceRefresh);
+      final students = await SupabaseService.instance
+          .getStudents(forceRefresh: forceRefresh);
+      final branches = await SupabaseService.instance
+          .getBranches(forceRefresh: forceRefresh);
+      final programs = await SupabaseService.instance
+          .getPrograms(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _students = students;
@@ -66,7 +72,8 @@ class StudentListScreenState extends State<StudentListScreen> {
 
   Future<void> _deleteStudent(String id) async {
     try {
-      final deletedSessionIds = await SupabaseService.instance.deleteStudent(id);
+      final deletedSessionIds =
+          await SupabaseService.instance.deleteStudent(id);
       await NotificationService()
           .cancelNotificationsForSessions(deletedSessionIds.toSet());
       setState(() {
@@ -86,9 +93,9 @@ class StudentListScreenState extends State<StudentListScreen> {
   }
 
   void _navigateToAdd({Student? student}) async {
-    final added = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => AddStudentScreen(student: student)),
+    final added = await showFormBottomSheet<bool>(
+      context: context,
+      child: AddStudentScreen(student: student),
     );
     if (added == true) {
       _loadData();
@@ -128,13 +135,6 @@ class StudentListScreenState extends State<StudentListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: widget.isTab
-          ? FloatingActionButton(
-              onPressed: _navigateToAdd,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
       body: SafeArea(
         child: Column(
           children: [

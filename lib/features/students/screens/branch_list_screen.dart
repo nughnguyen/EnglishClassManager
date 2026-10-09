@@ -9,10 +9,10 @@ class BranchListScreen extends StatefulWidget {
   const BranchListScreen({super.key});
 
   @override
-  State<BranchListScreen> createState() => _BranchListScreenState();
+  State<BranchListScreen> createState() => BranchListScreenState();
 }
 
-class _BranchListScreenState extends State<BranchListScreen> {
+class BranchListScreenState extends State<BranchListScreen> {
   List<Branch> _branches = [];
   bool _loading = true;
 
@@ -25,12 +25,15 @@ class _BranchListScreenState extends State<BranchListScreen> {
   Future<void> _loadBranches({bool forceRefresh = false}) async {
     if (_branches.isEmpty) setState(() => _loading = true);
     try {
-      final branches = await SupabaseService.instance.getBranches(forceRefresh: forceRefresh);
+      final branches = await SupabaseService.instance
+          .getBranches(forceRefresh: forceRefresh);
       if (mounted) setState(() => _branches = branches);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải danh sách: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Lỗi tải danh sách: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -45,7 +48,9 @@ class _BranchListScreenState extends State<BranchListScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xóa chi nhánh: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Lỗi xóa chi nhánh: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     }
@@ -81,7 +86,8 @@ class _BranchListScreenState extends State<BranchListScreen> {
                         if (branch == null) {
                           await SupabaseService.instance.createBranch(name);
                         } else {
-                          await SupabaseService.instance.updateBranch(branch.id, name);
+                          await SupabaseService.instance
+                              .updateBranch(branch.id, name);
                         }
                         if (mounted) {
                           Navigator.pop(context);
@@ -90,7 +96,9 @@ class _BranchListScreenState extends State<BranchListScreen> {
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
+                            SnackBar(
+                                content: Text('Lỗi: $e'),
+                                backgroundColor: AppColors.error),
                           );
                         }
                         setState(() => isLoading = false);
@@ -98,7 +106,9 @@ class _BranchListScreenState extends State<BranchListScreen> {
                     },
               child: isLoading
                   ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Lưu'),
             ),
           ],
@@ -107,19 +117,18 @@ class _BranchListScreenState extends State<BranchListScreen> {
     );
   }
 
+  void openAddBranch() => _showAddBranchDialog();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddBranchDialog(),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
       body: _loading
           ? _buildSkeleton()
           : _branches.isEmpty
-              ? const Center(child: Text('Chưa có chi nhánh nào', style: TextStyle(color: AppColors.textSecondary)))
+              ? const Center(
+                  child: Text('Chưa có chi nhánh nào',
+                      style: TextStyle(color: AppColors.textSecondary)))
               : RefreshIndicator(
                   onRefresh: () => _loadBranches(forceRefresh: true),
                   child: ListView.builder(

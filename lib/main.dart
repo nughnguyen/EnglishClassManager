@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_config.dart';
 import 'core/constants/app_colors.dart';
@@ -12,6 +12,7 @@ import 'features/students/screens/class_management_screen.dart';
 import 'features/salary/salary_report_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'widgets/curved_bottom_nav.dart';
+import 'widgets/form_bottom_sheet.dart';
 
 final GlobalKey<ScheduleScreenState> scheduleKey =
     GlobalKey<ScheduleScreenState>();
@@ -238,19 +239,9 @@ class _MainShellState extends State<MainShell> {
 
   void _onFabPressed() async {
     // Default to Add Session for L?ch, L?p h?c, Luong
-    final added = await showModalBottomSheet<bool>(
+    final added = await showFormBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: const AddSessionScreen(),
-      ),
+      child: const AddSessionScreen(),
     );
     if (added == true) {
       scheduleKey.currentState?.loadSessions();

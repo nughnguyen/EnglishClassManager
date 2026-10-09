@@ -8,6 +8,7 @@ import '../../../core/services/supabase_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
+import '../../../widgets/form_bottom_sheet.dart';
 import 'widgets/session_card.dart';
 import 'add_session_screen.dart';
 
@@ -349,19 +350,9 @@ class ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   void _onEditSession(Session session) async {
-    final result = await showModalBottomSheet(
+    final result = await showFormBottomSheet<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: AddSessionScreen(session: session),
-      ),
+      child: AddSessionScreen(session: session),
     );
     if (result == true) {
       loadSessions();

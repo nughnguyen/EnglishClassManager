@@ -11,6 +11,7 @@ import '../../../core/services/excel_export_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/models/profile.dart';
+import '../../../widgets/compact_header_action.dart';
 
 class SalaryReportScreen extends StatefulWidget {
   const SalaryReportScreen({super.key});
@@ -748,23 +749,6 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: (_loading || _exporting || _completedSessions.isEmpty)
-            ? null
-            : _showExportOptions,
-        backgroundColor: AppColors.primary,
-        icon: _exporting
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
-            : const Icon(Icons.table_view_rounded, color: Colors.white),
-        label: Text(
-          _exporting ? 'Đang lưu...' : 'Xuất báo cáo',
-          style: const TextStyle(color: Colors.white),
-        ),
-      ),
     );
   }
 
@@ -784,11 +768,25 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
               fontWeight: FontWeight.bold,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.manage_accounts_rounded,
-                color: AppColors.primary),
-            onPressed: () => _showProfileBottomSheet(context),
-            tooltip: 'Cập nhật thông tin',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CompactHeaderAction(
+                icon: Icons.table_view_rounded,
+                tooltip: 'Xuất báo cáo Excel',
+                loading: _exporting,
+                onPressed:
+                    (_loading || _exporting || _completedSessions.isEmpty)
+                        ? null
+                        : _showExportOptions,
+              ),
+              const SizedBox(width: 8),
+              CompactHeaderAction(
+                icon: Icons.manage_accounts_rounded,
+                tooltip: 'Cập nhật thông tin ngân hàng',
+                onPressed: () => _showProfileBottomSheet(context),
+              ),
+            ],
           ),
         ],
       ),
