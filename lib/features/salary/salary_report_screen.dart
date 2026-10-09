@@ -12,6 +12,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/models/profile.dart';
 import '../../../widgets/compact_header_action.dart';
+import '../../../widgets/form_bottom_sheet.dart';
 
 class SalaryReportScreen extends StatefulWidget {
   const SalaryReportScreen({super.key});
@@ -590,15 +591,9 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
                                       child: FittedBox(
                                         fit: BoxFit.scaleDown,
                                         alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          CurrencyFormatter.format(
+                                        child: _RgbNumberHighlight(
+                                          text: CurrencyFormatter.format(
                                               _totalSalary),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -.5,
-                                          ),
                                         ),
                                       ),
                                     ),
@@ -916,21 +911,9 @@ class _ProfileFormSheetState extends State<_ProfileFormSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Cập nhật thông tin',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
+          FormSheetHeader(
+            title: 'Cập nhật thông tin',
+            onClose: () => Navigator.pop(context),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -1042,6 +1025,129 @@ class _ProfileFormSheetState extends State<_ProfileFormSheet> {
           borderSide: BorderSide.none,
         ),
       ),
+    );
+  }
+}
+
+class _RgbNumberHighlight extends StatefulWidget {
+  final String text;
+
+  const _RgbNumberHighlight({required this.text});
+
+  @override
+  State<_RgbNumberHighlight> createState() => _RgbNumberHighlightState();
+}
+
+class _RgbNumberHighlightState extends State<_RgbNumberHighlight>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Size _textSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _measureText();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RgbNumberHighlight oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) _measureText();
+  }
+
+  void _measureText() {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: widget.text,
+        style: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
+        ),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    _textSize = painter.size;
+    painter.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        const textStyle = TextStyle(
+          color: Colors.white,
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
+        );
+        final shader = SweepGradient(
+          transform: GradientRotation(_controller.value * 6.283185307),
+          colors: const [
+            Color(0xFFFF4D6D),
+            Color(0xFFFFB84D),
+            Color(0xFFFFFF5C),
+            Color(0xFF50E3A4),
+            Color(0xFF45D7FF),
+            Color(0xFF6574FF),
+            Color(0xFFCB62FF),
+            Color(0xFFFF4D6D),
+          ],
+        ).createShader(Offset.zero & _textSize);
+
+        TextStyle outlineStyle(double width, {double blur = 0}) {
+          final paint = Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = width
+            ..shader = shader;
+          if (blur > 0) {
+            paint.maskFilter = MaskFilter.blur(BlurStyle.normal, blur);
+          }
+          return TextStyle(
+            foreground: paint,
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -.5,
+          );
+        }
+
+        return Semantics(
+          label: widget.text,
+          child: ExcludeSemantics(
+            child: Stack(
+              alignment: AlignmentDirectional.topStart,
+              children: [
+                Text(widget.text,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: outlineStyle(5, blur: 1.5)),
+                Text(widget.text,
+                    maxLines: 1, softWrap: false, style: outlineStyle(2.6)),
+                Text(widget.text,
+                    maxLines: 1, softWrap: false, style: textStyle),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

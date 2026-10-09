@@ -7,11 +7,15 @@ import '../../../../core/utils/currency_formatter.dart';
 class SessionCard extends StatelessWidget {
   final Session session;
   final bool isOngoing;
+  final bool isCompleted;
+  final Animation<double> ongoingAnimation;
 
   const SessionCard({
     super.key,
     required this.session,
+    required this.ongoingAnimation,
     this.isOngoing = false,
+    this.isCompleted = false,
   });
 
   String get _statusLabel {
@@ -41,8 +45,9 @@ class SessionCard extends StatelessWidget {
     final sessionColor = AppColors.fromHex(session.colorHex);
     return _OngoingFrame(
       isActive: isOngoing,
+      showStaticBorder: isCompleted,
       accentColor: sessionColor,
-      animationSeed: session.id.hashCode,
+      animation: ongoingAnimation,
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -189,77 +194,43 @@ class SessionCard extends StatelessWidget {
   }
 }
 
-class _OngoingFrame extends StatefulWidget {
+class _OngoingFrame extends StatelessWidget {
   final bool isActive;
+  final bool showStaticBorder;
   final Color accentColor;
-  final int animationSeed;
+  final Animation<double> animation;
   final Widget child;
 
   const _OngoingFrame({
     required this.isActive,
+    required this.showStaticBorder,
     required this.accentColor,
-    required this.animationSeed,
+    required this.animation,
     required this.child,
   });
 
   @override
-  State<_OngoingFrame> createState() => _OngoingFrameState();
-}
-
-class _OngoingFrameState extends State<_OngoingFrame>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: Duration(
-        milliseconds: 2400 + widget.animationSeed.abs() % 2100,
-      ),
-    );
-    if (widget.isActive) _controller.repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant _OngoingFrame oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isActive && !oldWidget.isActive) {
-      _controller.repeat();
-    } else if (!widget.isActive && oldWidget.isActive) {
-      _controller.stop();
-      _controller.value = 0;
-    } else if (widget.isActive &&
-        widget.animationSeed != oldWidget.animationSeed) {
-      _controller.duration = Duration(
-        milliseconds: 2400 + widget.animationSeed.abs() % 2100,
-      );
-      _controller
-        ..value = 0
-        ..repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    if (!isActive) {
+      if (!showStaticBorder) return child;
+      return CustomPaint(
+        foregroundPainter: _OrbitingBorderPainter(
+          progress: 0,
+          accentColor: accentColor,
+          isAnimated: false,
+        ),
+        child: child,
+      );
+    }
     return AnimatedBuilder(
-      animation: _controller,
-      child: widget.child,
+      animation: animation,
+      child: child,
       builder: (context, child) => CustomPaint(
-        foregroundPainter: widget.isActive
-            ? _OrbitingBorderPainter(
-                progress: _controller.value,
-                accentColor: widget.accentColor,
-                animationSeed: widget.animationSeed,
-              )
-            : null,
+        foregroundPainter: _OrbitingBorderPainter(
+          progress: animation.value,
+          accentColor: accentColor,
+          isAnimated: true,
+        ),
         child: child,
       ),
     );
@@ -269,12 +240,12 @@ class _OngoingFrameState extends State<_OngoingFrame>
 class _OrbitingBorderPainter extends CustomPainter {
   final double progress;
   final Color accentColor;
-  final int animationSeed;
+  final bool isAnimated;
 
   const _OrbitingBorderPainter({
     required this.progress,
     required this.accentColor,
-    required this.animationSeed,
+    required this.isAnimated,
   });
 
   @override
@@ -286,12 +257,10 @@ class _OrbitingBorderPainter extends CustomPainter {
     );
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..shader = SweepGradient(
-        transform: GradientRotation(
-          (progress * (animationSeed.isEven ? 1 : -1) * 6.283185307) +
-              (animationSeed.abs() % 360) * 0.017453293,
-        ),
+      ..strokeWidth = isAnimated ? 3 : 2.5;
+    if (isAnimated) {
+      paint.shader = SweepGradient(
+        transform: GradientRotation(progress * 6.283185307),
         colors: [
           Colors.transparent,
           Colors.transparent,
@@ -302,6 +271,9 @@ class _OrbitingBorderPainter extends CustomPainter {
         ],
         stops: const [0, .66, .73, .77, .81, 1],
       ).createShader(rect);
+    } else {
+      paint.color = accentColor;
+    }
     canvas.drawRRect(rrect, paint);
   }
 
@@ -309,5 +281,5 @@ class _OrbitingBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant _OrbitingBorderPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.accentColor != accentColor ||
-      oldDelegate.animationSeed != animationSeed;
+      oldDelegate.isAnimated != isAnimated;
 }

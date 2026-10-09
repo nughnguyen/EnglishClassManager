@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_config.dart';
 import 'core/constants/app_colors.dart';
@@ -176,6 +177,8 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  final List<int> _tabHistory = [];
+  DateTime? _lastBackPress;
 
   late final List<Widget> _screens;
 
@@ -202,39 +205,103 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: List.generate(_screens.length, (index) {
-          final active = index == _currentIndex;
-          return AnimatedOpacity(
-            opacity: active ? 1 : 0,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: AnimatedScale(
-              scale: active ? 1 : 0.985,
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_tabHistory.isNotEmpty || _currentIndex != 0) {
+          _lastBackPress = null;
+          _goBackToPreviousTab();
+        } else {
+          _handleBackAtRoot();
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: List.generate(_screens.length, (index) {
+            final active = index == _currentIndex;
+            return AnimatedOpacity(
+              opacity: active ? 1 : 0,
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              child: _screens[index],
-            ),
-          );
-        }),
-      ),
-      bottomNavigationBar: CurvedBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 0) {
-            scheduleKey.currentState?.loadSessions(showLoading: true);
-          } else if (index == 2) {
-            salaryKey.currentState?.loadData(showLoading: true);
-          } else if (index == 1) {
-            studentListKey.currentState?.loadStudents();
-          }
-        },
-        onFabPressed: _onFabPressed,
+              child: AnimatedScale(
+                scale: active ? 1 : 0.985,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: _screens[index],
+              ),
+            );
+          }),
+        ),
+        bottomNavigationBar: CurvedBottomNav(
+          currentIndex: _currentIndex,
+          onTap: _navigateToTab,
+          onFabPressed: _onFabPressed,
+        ),
       ),
     );
+  }
+
+  void _handleBackAtRoot() {
+    final now = DateTime.now();
+    final lastPress = _lastBackPress;
+    if (lastPress != null &&
+        now.difference(lastPress) <= const Duration(seconds: 2)) {
+      _lastBackPress = null;
+      SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackPress = now;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Nhấn Back lần nữa để thoát'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  void _navigateToTab(int index) {
+    if (index == _currentIndex) {
+      _refreshTab(index);
+      return;
+    }
+    _tabHistory.add(_currentIndex);
+    setState(() => _currentIndex = index);
+    _refreshTab(index);
+  }
+
+  void _goBackToPreviousTab() {
+    while (_tabHistory.isNotEmpty) {
+      final previousIndex = _tabHistory.removeLast();
+      if (previousIndex == _currentIndex) continue;
+      setState(() => _currentIndex = previousIndex);
+      _refreshTab(previousIndex);
+      return;
+    }
+    // If no tab history remains, return to the main schedule before exiting.
+    if (_currentIndex != 0) {
+      setState(() {
+        _currentIndex = 0;
+        _tabHistory.clear();
+      });
+      _refreshTab(0);
+    }
+  }
+
+  void _refreshTab(int index) {
+    if (index == 0) {
+      scheduleKey.currentState?.showToday();
+    } else if (index == 2) {
+      salaryKey.currentState?.loadData(showLoading: true);
+    } else if (index == 1) {
+      studentListKey.currentState?.loadStudents();
+    }
   }
 
   void _onFabPressed() async {

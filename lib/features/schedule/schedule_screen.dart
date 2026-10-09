@@ -19,17 +19,24 @@ class ScheduleScreen extends StatefulWidget {
   State<ScheduleScreen> createState() => ScheduleScreenState();
 }
 
-class ScheduleScreenState extends State<ScheduleScreen> {
+class ScheduleScreenState extends State<ScheduleScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime _selectedDate = DateTime.now();
   List<Session> _monthSessions = [];
   bool _loading = true;
   final ScrollController _rulerController = ScrollController();
   Timer? _clockTimer;
+  late final AnimationController _ongoingBorderAnimation;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _ongoingBorderAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
     loadSessions();
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
@@ -39,9 +46,33 @@ class ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _rulerController.dispose();
     _clockTimer?.cancel();
+    _ongoingBorderAnimation.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _returnToToday();
+  }
+
+  Future<void> showToday() => _returnToToday();
+
+  Future<void> _returnToToday() async {
+    final today = DateTime.now();
+    final dateChanged = !AppDateUtils.isSameDay(_selectedDate, today);
+    final monthChanged =
+        _currentMonth.year != today.year || _currentMonth.month != today.month;
+    if (dateChanged || monthChanged) {
+      setState(() {
+        _currentMonth = DateTime(today.year, today.month);
+        _selectedDate = today;
+      });
+    }
+    await loadSessions(showLoading: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
   }
 
   Future<void> loadSessions(
@@ -186,10 +217,13 @@ class ScheduleScreenState extends State<ScheduleScreen> {
   void _scrollToSelectedDay() {
     if (!_rulerController.hasClients) return;
     final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = 50.0; // 46 width + 4 margin total
-    final offset = (_selectedDate.day - 1) * itemWidth -
-        (screenWidth / 2) +
-        (itemWidth / 2);
+    const itemExtent = 62.0; // 54 px day circle + 8 px horizontal spacing.
+    const leadingPadding = 12.0;
+    const circleSize = 54.0;
+    final offset = leadingPadding +
+        (_selectedDate.day - 1) * itemExtent +
+        circleSize / 2 -
+        screenWidth / 2;
     _rulerController.animateTo(
       offset.clamp(0.0, _rulerController.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
@@ -388,7 +422,7 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                               fontWeight: FontWeight.w700,
                               fontSize: 20)),
                       Text(
-                          '${_monthSessions.where((s) => s.date.year == _selectedDate.year && s.date.month == _selectedDate.month && s.date.day == _selectedDate.day).length} lớp học hôm nay',
+                          '${_selectedDaySessions.length} lớp học · ${_selectedDate.day}/${_selectedDate.month}',
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 13)),
                     ],
@@ -445,11 +479,11 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                   ),
                   // Day Ruler
                   SizedBox(
-                    height: 72,
+                    height: 94,
                     child: ListView.builder(
                       controller: _rulerController,
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: daysInMonth,
                       itemBuilder: (context, index) {
                         final day = index + 1;
@@ -465,13 +499,41 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                         final isRealToday =
                             AppDateUtils.isSameDay(date, DateTime.now());
 
-                        Widget content = Container(
-                          width: 46,
+                        final content = AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          width: 54,
+                          height: 54,
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.navyDark
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: isSelected
+                                ? const LinearGradient(
+                                    colors: [
+                                      AppColors.primary,
+                                      AppColors.navyDark,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: isSelected ? null : AppColors.background,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : isRealToday
+                                      ? AppColors.primary.withOpacity(.5)
+                                      : AppColors.divider.withOpacity(.7),
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primary.withOpacity(.2),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ]
+                                : const [],
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -479,18 +541,19 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                               Text(
                                 dayOfWeek,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                   color: isSelected
-                                      ? Colors.white70
+                                      ? Colors.white.withOpacity(.76)
                                       : AppColors.textSecondary,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 5),
                               Text(
                                 day.toString(),
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
                                   color: isSelected
                                       ? Colors.white
                                       : (isRealToday
@@ -498,14 +561,16 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                           : AppColors.textPrimary),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              // Dot indicators
-                              if (dayDots.isNotEmpty)
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: dayDots
-                                      .take(3)
-                                      .map((hex) => Container(
+                              const SizedBox(height: 5),
+                              SizedBox(
+                                height: 6,
+                                child: dayDots.isEmpty
+                                    ? null
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: dayDots.take(3).map((hex) {
+                                          return Container(
                                             width: 5,
                                             height: 5,
                                             margin: const EdgeInsets.symmetric(
@@ -514,20 +579,13 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                               color: AppColors.fromHex(hex),
                                               shape: BoxShape.circle,
                                             ),
-                                          ))
-                                      .toList(),
-                                ),
+                                          );
+                                        }).toList(),
+                                      ),
+                              ),
                             ],
                           ),
                         );
-
-                        if (isRealToday && !isSelected) {
-                          content = CustomPaint(
-                            painter:
-                                DashedRectPainter(color: AppColors.primary),
-                            child: content,
-                          );
-                        }
 
                         return GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -538,7 +596,7 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                           },
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 2, vertical: 6),
+                                horizontal: 4, vertical: 5),
                             child: content,
                           ),
                         );
@@ -635,6 +693,9 @@ class ScheduleScreenState extends State<ScheduleScreen> {
                                   child: SessionCard(
                                     session: session,
                                     isOngoing: _isSessionOngoing(session),
+                                    isCompleted: session.status ==
+                                        SessionStatus.completed,
+                                    ongoingAnimation: _ongoingBorderAnimation,
                                   ),
                                 ),
                               );
@@ -667,48 +728,5 @@ class ScheduleScreenState extends State<ScheduleScreen> {
         ),
       ),
     );
-  }
-}
-
-class DashedRectPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double gap;
-
-  DashedRectPainter({
-    required this.color,
-    this.strokeWidth = 1.5,
-    this.gap = 4.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    var paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    var path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, 0, size.width, size.height),
-          const Radius.circular(12)));
-
-    Path dashPath = Path();
-    for (var measurePath in path.computeMetrics()) {
-      double distance = 0.0;
-      while (distance < measurePath.length) {
-        dashPath.addPath(
-            measurePath.extractPath(distance, distance + gap), Offset.zero);
-        distance += gap * 2;
-      }
-    }
-    canvas.drawPath(dashPath, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant DashedRectPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.gap != gap;
   }
 }

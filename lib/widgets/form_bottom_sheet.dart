@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
 
 Future<T?> showFormBottomSheet<T>({
   required BuildContext context,
   required Widget child,
-  double heightFactor = .9,
+  double heightFactor = .85,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -19,4 +20,42 @@ Future<T?> showFormBottomSheet<T>({
       child: child,
     ),
   );
+}
+
+class FormSheetHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onClose;
+
+  const FormSheetHeader({
+    super.key,
+    required this.title,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Đóng',
+          onPressed: onClose,
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.background,
+            foregroundColor: AppColors.textSecondary,
+          ),
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ],
+    );
+  }
 }

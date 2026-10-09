@@ -7,6 +7,7 @@ import '../../core/models/student.dart';
 import '../../core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 import 'package:uuid/uuid.dart';
+import '../../widgets/form_bottom_sheet.dart';
 
 class AddSessionScreen extends StatefulWidget {
   final Session? session;
@@ -156,7 +157,8 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
       } else {
         String sessionColor = _selectedProgram!.colorHex;
         try {
-          final student = _students.firstWhere((s) => s.name == _studentNameCtrl.text.trim());
+          final student = _students
+              .firstWhere((s) => s.name == _studentNameCtrl.text.trim());
           sessionColor = student.colorHex;
         } catch (_) {}
 
@@ -200,184 +202,221 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(widget.session == null
-            ? 'Thêm ca học thủ công'
-            : 'Cập nhật ca học'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _studentNameCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Tên học sinh / Tên lớp',
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  isDense: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black45),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  suffixIcon: PopupMenuButton<String>(
-                    icon: const Icon(Icons.arrow_drop_down),
-                    onSelected: (String selection) {
-                      _studentNameCtrl.text = selection;
-                      try {
-                        final student = _students.firstWhere((s) => s.name == selection);
-                        if (student.branchId != null) {
-                          _selectedBranch = _branches.firstWhere((b) => b.id == student.branchId);
-                        }
-                        if (student.programId != null) {
-                          _selectedProgram = _programs.firstWhere((p) => p.id == student.programId);
-                        }
-                      } catch (_) {}
-                      setState(() {});
-                    },
-                    itemBuilder: (BuildContext context) {
-                      return _students.map((s) {
-                        return PopupMenuItem<String>(
-                          value: s.name,
-                          child: Text(s.name),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 16, 8),
+              child: FormSheetHeader(
+                title: widget.session == null
+                    ? 'Thêm ca học thủ công'
+                    : 'Cập nhật ca học',
+                onClose: () => Navigator.pop(context),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<Branch>(
-                value: _selectedBranch,
-                isExpanded: true,
-                decoration: InputDecoration(
-                    labelText: 'Chi nhánh',
-                    filled: true,
-                    isDense: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black45),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                items: _branches
-                    .map((b) => DropdownMenuItem(value: b, child: Text(b.name, overflow: TextOverflow.ellipsis)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedBranch = v),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<Program>(
-                value: _selectedProgram,
-                isExpanded: true,
-                decoration: InputDecoration(
-                    labelText: 'Chương trình đào tạo',
-                    filled: true,
-                    isDense: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.black45),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                items: _programs
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p.name, overflow: TextOverflow.ellipsis)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedProgram = v),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                tileColor: AppColors.surface,
-                title: Text(
-                    'Ngày: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
-                trailing:
-                    const Icon(Icons.calendar_today, color: AppColors.primary),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) setState(() => _selectedDate = picked);
-                },
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _pickTime(true),
-                      child: InputDecorator(
+            ),
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        controller: _studentNameCtrl,
                         decoration: InputDecoration(
-                            labelText: 'Giờ bắt đầu',
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.black45),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          labelText: 'Tên học sinh / Tên lớp',
+                          filled: true,
+                          fillColor: AppColors.surface,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.black45),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          suffixIcon: PopupMenuButton<String>(
+                            icon: const Icon(Icons.arrow_drop_down),
+                            onSelected: (String selection) {
+                              _studentNameCtrl.text = selection;
+                              try {
+                                final student = _students
+                                    .firstWhere((s) => s.name == selection);
+                                if (student.branchId != null) {
+                                  _selectedBranch = _branches.firstWhere(
+                                      (b) => b.id == student.branchId);
+                                }
+                                if (student.programId != null) {
+                                  _selectedProgram = _programs.firstWhere(
+                                      (p) => p.id == student.programId);
+                                }
+                              } catch (_) {}
+                              setState(() {});
+                            },
+                            itemBuilder: (BuildContext context) {
+                              return _students.map((s) {
+                                return PopupMenuItem<String>(
+                                  value: s.name,
+                                  child: Text(s.name),
+                                );
+                              }).toList();
+                            },
+                          ),
                         ),
-                        child: Text(_startTime == null
-                            ? 'Chọn giờ'
-                            : _timeStr(_startTime!)),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _pickTime(false),
-                      child: InputDecorator(
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<Branch>(
+                        value: _selectedBranch,
+                        isExpanded: true,
                         decoration: InputDecoration(
-                            labelText: 'Giờ kết thúc',
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.black45),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          labelText: 'Chi nhánh',
+                          filled: true,
+                          isDense: true,
+                          fillColor: AppColors.surface,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.black45),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                         ),
-                        child: Text(_endTime == null
-                            ? 'Chọn giờ'
-                            : _timeStr(_endTime!)),
+                        items: _branches
+                            .map((b) => DropdownMenuItem(
+                                value: b,
+                                child: Text(b.name,
+                                    overflow: TextOverflow.ellipsis)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedBranch = v),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<Program>(
+                        value: _selectedProgram,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Chương trình đào tạo',
+                          filled: true,
+                          isDense: true,
+                          fillColor: AppColors.surface,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.black45),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                        items: _programs
+                            .map((p) => DropdownMenuItem(
+                                value: p,
+                                child: Text(p.name,
+                                    overflow: TextOverflow.ellipsis)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedProgram = v),
+                      ),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        tileColor: AppColors.surface,
+                        title: Text(
+                            'Ngày: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
+                        trailing: const Icon(Icons.calendar_today,
+                            color: AppColors.primary),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null)
+                            setState(() => _selectedDate = picked);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _pickTime(true),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Giờ bắt đầu',
+                                  filled: true,
+                                  fillColor: AppColors.surface,
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                        const BorderSide(color: Colors.black45),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                                child: Text(_startTime == null
+                                    ? 'Chọn giờ'
+                                    : _timeStr(_startTime!)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _pickTime(false),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Giờ kết thúc',
+                                  filled: true,
+                                  fillColor: AppColors.surface,
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                        const BorderSide(color: Colors.black45),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                ),
+                                child: Text(_endTime == null
+                                    ? 'Chọn giờ'
+                                    : _timeStr(_endTime!)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _save,
+                          child: _loading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2)
+                              : Text(
+                                  widget.session == null
+                                      ? 'Lưu ca học'
+                                      : 'Cập nhật',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _save,
-                  child: _loading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2)
-                      : Text(widget.session == null ? 'Lưu ca học' : 'Cập nhật',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
