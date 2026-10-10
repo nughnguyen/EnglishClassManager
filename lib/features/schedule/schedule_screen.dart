@@ -28,6 +28,11 @@ class ScheduleScreenState extends State<ScheduleScreen>
   final ScrollController _rulerController = ScrollController();
   Timer? _clockTimer;
   late final AnimationController _ongoingBorderAnimation;
+  late final AnimationController _greetingTypingAnimation;
+  String _teacherName = '';
+  int _greetingMessageIndex = 0;
+  Timer? _greetingCycleTimer;
+  bool _staleNotificationsCleaned = false;
 
   @override
   void initState() {
@@ -37,6 +42,11 @@ class ScheduleScreenState extends State<ScheduleScreen>
       vsync: this,
       duration: const Duration(milliseconds: 3600),
     )..repeat();
+    _greetingTypingAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 950),
+    );
+    _loadTeacherName();
     loadSessions();
     _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
@@ -49,8 +59,28 @@ class ScheduleScreenState extends State<ScheduleScreen>
     WidgetsBinding.instance.removeObserver(this);
     _rulerController.dispose();
     _clockTimer?.cancel();
+    _greetingCycleTimer?.cancel();
     _ongoingBorderAnimation.dispose();
+    _greetingTypingAnimation.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTeacherName() async {
+    try {
+      final profile = await SupabaseService.instance.getProfile();
+      final name = profile?.fullName?.trim() ?? '';
+      if (!mounted || name.isEmpty) return;
+      setState(() => _teacherName = name);
+      _greetingTypingAnimation.forward(from: 0);
+      _greetingCycleTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+        _greetingTypingAnimation.reverse().then((_) {
+          if (!mounted) return;
+          setState(() => _greetingMessageIndex =
+              (_greetingMessageIndex + 1) % 2);
+          _greetingTypingAnimation.forward();
+        });
+      });
+    } catch (_) {}
   }
 
   @override
@@ -59,6 +89,19 @@ class ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Future<void> showToday() => _returnToToday();
+
+  Future<void> showDateAndRefresh(DateTime date) async {
+    setState(() {
+      _currentMonth = DateTime(date.year, date.month);
+      _selectedDate = DateTime(date.year, date.month, date.day);
+    });
+    await loadSessions(forceRefresh: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
+  }
+
+  String get _greetingMessage => _greetingMessageIndex == 0
+      ? 'Xin chào, $_teacherName!'
+      : 'Chúc bạn một ngày tốt lành!';
 
   Future<void> _returnToToday() async {
     final today = DateTime.now();
@@ -85,28 +128,35 @@ class ScheduleScreenState extends State<ScheduleScreen>
       );
       if (mounted) setState(() => _monthSessions = sessions);
 
+      if (!_staleNotificationsCleaned) {
+        try {
+          final notificationService = NotificationService();
+          final pendingSessions = await SupabaseService.instance
+              .getPendingSessionsForNotifications();
+          // Remove old alarms and already displayed reminders, including ones
+          // left behind by sessions deleted before this cleanup was added.
+          await notificationService.cancelAllNotifications();
+          for (final session in pendingSessions) {
+            final endTime = _sessionEndTime(session);
+            if (endTime == null || !endTime.isAfter(DateTime.now())) continue;
+            await notificationService.scheduleSessionEndNotification(
+              id: session.id.hashCode & 0x7fffffff,
+              sessionId: session.id,
+              sessionName: session.studentName,
+              endTime: endTime,
+            );
+          }
+          _staleNotificationsCleaned = true;
+        } catch (_) {
+          // Retry reconciliation on the next successful schedule refresh.
+        }
+      }
+
       // Schedule local notifications for pending sessions
       for (final s in sessions) {
         if (s.status == SessionStatus.pending) {
-          final timeMatch = RegExp(
-            r'^\s*\d{1,2}:\d{2}\s*-\s*(\d{1,2}):(\d{2})\s*$',
-          ).firstMatch(s.timeSlot);
-          if (timeMatch == null) continue;
-
-          final hour = int.tryParse(timeMatch.group(1)!);
-          final minute = int.tryParse(timeMatch.group(2)!);
-          if (hour == null || minute == null || hour > 23 || minute > 59) {
-            continue;
-          }
-
-          final endTime = DateTime(
-            s.date.year,
-            s.date.month,
-            s.date.day,
-            hour,
-            minute,
-          );
-          if (endTime.isAfter(DateTime.now())) {
+          final endTime = _sessionEndTime(s);
+          if (endTime != null && endTime.isAfter(DateTime.now())) {
             await NotificationService().scheduleSessionEndNotification(
               id: s.id.hashCode & 0x7fffffff,
               sessionId: s.id,
@@ -137,6 +187,28 @@ class ScheduleScreenState extends State<ScheduleScreen>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  DateTime? _sessionEndTime(Session session) {
+    final match = RegExp(
+      r'^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$',
+    ).firstMatch(session.timeSlot);
+    if (match == null) return null;
+    final values = List.generate(
+        4, (index) => int.tryParse(match.group(index + 1)!));
+    if (values.any((value) => value == null) ||
+        values[0]! > 23 ||
+        values[2]! > 23 ||
+        values[1]! > 59 ||
+        values[3]! > 59) {
+      return null;
+    }
+    final start = DateTime(session.date.year, session.date.month,
+        session.date.day, values[0]!, values[1]!);
+    var end = DateTime(session.date.year, session.date.month, session.date.day,
+        values[2]!, values[3]!);
+    if (end.isBefore(start)) end = end.add(const Duration(days: 1));
+    return end;
   }
 
   void handleNotificationTap(String payload) {
@@ -250,9 +322,30 @@ class ScheduleScreenState extends State<ScheduleScreen>
   }
 
   List<Session> get _selectedDaySessions {
-    return _monthSessions
+    final sessions = _monthSessions
         .where((session) => AppDateUtils.isSameDay(session.date, _selectedDate))
         .toList();
+    sessions.sort((a, b) {
+      final absentOrder = (a.status == SessionStatus.cancelled ? 1 : 0)
+          .compareTo(b.status == SessionStatus.cancelled ? 1 : 0);
+      if (absentOrder != 0) return absentOrder;
+      final ongoingOrder = (_isSessionOngoing(b) ? 1 : 0)
+          .compareTo(_isSessionOngoing(a) ? 1 : 0);
+      if (ongoingOrder != 0) return ongoingOrder;
+      return _startMinute(a).compareTo(_startMinute(b));
+    });
+    return sessions;
+  }
+
+  int _startMinute(Session session) {
+    final match = RegExp(r'^\s*(\d{1,2}):(\d{2})\s*-').firstMatch(session.timeSlot);
+    if (match == null) return 24 * 60;
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return 24 * 60;
+    }
+    return hour * 60 + minute;
   }
 
   bool _isSessionOngoing(Session session) {
@@ -303,6 +396,9 @@ class ScheduleScreenState extends State<ScheduleScreen>
   Future<void> _deleteSession(String id) async {
     try {
       await SupabaseService.instance.deleteSession(id);
+      try {
+        await NotificationService().cancelNotificationsForSessions({id});
+      } catch (_) {}
       await loadSessions();
     } catch (e) {
       if (mounted) {
@@ -384,12 +480,12 @@ class ScheduleScreenState extends State<ScheduleScreen>
   }
 
   void _onEditSession(Session session) async {
-    final result = await showFormBottomSheet<bool>(
+    final result = await showFormBottomSheet<DateTime>(
       context: context,
       child: AddSessionScreen(session: session),
     );
-    if (result == true) {
-      loadSessions();
+    if (result != null) {
+      await showDateAndRefresh(result);
     }
   }
 
@@ -416,6 +512,27 @@ class ScheduleScreenState extends State<ScheduleScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (_teacherName.isNotEmpty)
+                        AnimatedBuilder(
+                          animation: _greetingTypingAnimation,
+                          builder: (context, child) {
+                            final message = _greetingMessage;
+                            final count = (message.length *
+                                    _greetingTypingAnimation.value)
+                                .ceil()
+                                .clamp(0, message.length);
+                            return Text(
+                              message.substring(0, count),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
+                        ),
                       const Text('Lịch dạy',
                           style: TextStyle(
                               color: AppColors.primary,
@@ -446,6 +563,8 @@ class ScheduleScreenState extends State<ScheduleScreen>
                           onPressed: _prevMonth,
                           icon: const Icon(Icons.chevron_left_rounded,
                               color: AppColors.primary),
+                          constraints:
+                              const BoxConstraints.tightFor(width: 38, height: 38),
                           padding: EdgeInsets.zero,
                         ),
                         InkWell(
@@ -457,7 +576,7 @@ class ScheduleScreenState extends State<ScheduleScreen>
                               borderRadius: BorderRadius.circular(20),
                             ),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 8),
+                                horizontal: 14, vertical: 8),
                             child: Text(
                               '${AppDateUtils.monthName(_currentMonth.month)} ${_currentMonth.year}',
                               style: const TextStyle(
@@ -472,8 +591,25 @@ class ScheduleScreenState extends State<ScheduleScreen>
                           onPressed: _nextMonth,
                           icon: const Icon(Icons.chevron_right_rounded,
                               color: AppColors.primary),
+                          constraints:
+                              const BoxConstraints.tightFor(width: 38, height: 38),
                           padding: EdgeInsets.zero,
                         ),
+                        if (!AppDateUtils.isSameDay(
+                            _selectedDate, DateTime.now()))
+                          IconButton(
+                            tooltip: 'Quay về hôm nay',
+                            onPressed: _returnToToday,
+                            constraints:
+                                const BoxConstraints.tightFor(width: 38, height: 38),
+                            padding: EdgeInsets.zero,
+                            style: IconButton.styleFrom(
+                              backgroundColor:
+                                  AppColors.primary.withOpacity(.1),
+                              foregroundColor: AppColors.primary,
+                            ),
+                            icon: const Icon(Icons.today_rounded, size: 19),
+                          ),
                       ],
                     ),
                   ),

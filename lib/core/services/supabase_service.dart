@@ -595,6 +595,17 @@ class SupabaseService {
     _invalidateSessions();
   }
 
+  Future<List<Session>> getPendingSessionsForNotifications() async {
+    final rows = await _client
+        .from('sessions')
+        .select()
+        .eq('user_id', _userId)
+        .eq('status', SessionStatus.pending.value);
+    return (rows as List)
+        .map((row) => Session.fromJson(row))
+        .toList();
+  }
+
   // ============================================================
   // GENERATE SESSIONS FROM STUDENT SCHEDULE
   // ============================================================

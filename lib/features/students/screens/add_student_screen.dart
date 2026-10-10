@@ -6,6 +6,7 @@ import '../../../core/models/student.dart';
 import '../../../core/services/supabase_service.dart';
 import 'package:uuid/uuid.dart';
 import '../../../widgets/form_bottom_sheet.dart';
+import '../../../widgets/time_wheel_picker.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final Student? student;
@@ -367,10 +368,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                           Expanded(
                             child: InkWell(
                               onTap: () async {
-                                final t = await showTimePicker(
-                                    context: context,
-                                    initialTime: _startTime ??
-                                        const TimeOfDay(hour: 17, minute: 0));
+                                final t = await showTimeWheelPicker(
+                                  context: context,
+                                  initialTime: _startTime ??
+                                      const TimeOfDay(hour: 17, minute: 0),
+                                  title: 'Giờ bắt đầu',
+                                );
                                 if (t != null) setState(() => _startTime = t);
                               },
                               child: InputDecorator(
@@ -398,10 +401,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                           Expanded(
                             child: InkWell(
                               onTap: () async {
-                                final t = await showTimePicker(
-                                    context: context,
-                                    initialTime: _endTime ??
-                                        const TimeOfDay(hour: 19, minute: 0));
+                                final t = await showTimeWheelPicker(
+                                  context: context,
+                                  initialTime: _endTime ??
+                                      const TimeOfDay(hour: 19, minute: 0),
+                                  title: 'Giờ kết thúc',
+                                );
                                 if (t != null) setState(() => _endTime = t);
                               },
                               child: InputDecorator(

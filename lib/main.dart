@@ -39,6 +39,9 @@ void main() async {
       }
     },
   );
+  // Clear persisted Android alarms before the app UI starts. The schedule
+  // screen rebuilds valid reminders from the current sessions after sign-in.
+  await NotificationService().cancelAllNotifications();
 
   runApp(const EnglishClassManagerApp());
 }
@@ -118,6 +121,68 @@ class EnglishClassManagerApp extends StatelessWidget {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+        ),
+        datePickerTheme: DatePickerThemeData(
+          backgroundColor: AppColors.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          headerBackgroundColor: AppColors.primary,
+          headerForegroundColor: Colors.white,
+          weekdayStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+          dayStyle: const TextStyle(fontWeight: FontWeight.w600),
+          todayForegroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return AppColors.primary;
+          }),
+          todayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return AppColors.primary;
+            return Colors.transparent;
+          }),
+          todayBorder: const BorderSide(color: AppColors.primary),
+          yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return AppColors.textPrimary;
+          }),
+          yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return AppColors.primary;
+            return Colors.transparent;
+          }),
+          dayShape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          confirmButtonStyle: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          cancelButtonStyle: TextButton.styleFrom(
+            foregroundColor: AppColors.textSecondary,
+          ),
+        ),
+        timePickerTheme: TimePickerThemeData(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          hourMinuteShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          hourMinuteColor: AppColors.background,
+          hourMinuteTextColor: AppColors.textPrimary,
+          dialBackgroundColor: AppColors.background,
+          dialHandColor: AppColors.primary,
+          dialTextColor: AppColors.textPrimary,
+          entryModeIconColor: AppColors.primary,
+          dayPeriodColor: AppColors.primary.withOpacity(.12),
+          dayPeriodTextColor: AppColors.primary,
+          helpTextStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         snackBarTheme: const SnackBarThemeData(
@@ -306,12 +371,12 @@ class _MainShellState extends State<MainShell> {
 
   void _onFabPressed() async {
     // Default to Add Session for L?ch, L?p h?c, Luong
-    final added = await showFormBottomSheet<bool>(
+    final addedDate = await showFormBottomSheet<DateTime>(
       context: context,
       child: const AddSessionScreen(),
     );
-    if (added == true) {
-      scheduleKey.currentState?.loadSessions();
+    if (addedDate != null) {
+      await scheduleKey.currentState?.showDateAndRefresh(addedDate);
     }
   }
 }

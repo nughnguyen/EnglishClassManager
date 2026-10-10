@@ -21,7 +21,8 @@ class SessionCard extends StatelessWidget {
   String get _statusLabel {
     switch (session.status) {
       case SessionStatus.pending:
-        return 'Chưa học';
+        if (isOngoing) return 'Đang diễn ra';
+        return _hasEnded ? 'Chờ điểm danh' : 'Sắp tới';
       case SessionStatus.completed:
         return 'Hoàn thành';
       case SessionStatus.cancelled:
@@ -29,10 +30,32 @@ class SessionCard extends StatelessWidget {
     }
   }
 
+  bool get _hasEnded {
+    final match = RegExp(
+      r'^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$',
+    ).firstMatch(session.timeSlot);
+    if (match == null) return false;
+    final values =
+        List.generate(4, (index) => int.tryParse(match.group(index + 1)!));
+    if (values.any((value) => value == null) ||
+        values[0]! > 23 ||
+        values[2]! > 23 ||
+        values[1]! > 59 ||
+        values[3]! > 59) {
+      return false;
+    }
+    final start = DateTime(session.date.year, session.date.month,
+        session.date.day, values[0]!, values[1]!);
+    var end = DateTime(session.date.year, session.date.month, session.date.day,
+        values[2]!, values[3]!);
+    if (end.isBefore(start)) end = end.add(const Duration(days: 1));
+    return DateTime.now().isAfter(end);
+  }
+
   Color get _statusColor {
     switch (session.status) {
       case SessionStatus.pending:
-        return AppColors.warning;
+        return isOngoing ? AppColors.success : AppColors.warning;
       case SessionStatus.completed:
         return AppColors.success;
       case SessionStatus.cancelled:

@@ -8,6 +8,7 @@ import '../../core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 import 'package:uuid/uuid.dart';
 import '../../widgets/form_bottom_sheet.dart';
+import '../../widgets/time_wheel_picker.dart';
 
 class AddSessionScreen extends StatefulWidget {
   final Session? session;
@@ -89,18 +90,85 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   Future<void> _pickTime(bool isStart) async {
-    final picked = await showTimePicker(
+    final picked = await showTimeWheelPicker(
       context: context,
       initialTime: (isStart ? _startTime : _endTime) ?? TimeOfDay.now(),
+      title: isStart ? 'Giờ bắt đầu' : 'Giờ kết thúc',
     );
-    if (picked != null) {
-      setState(() {
-        if (isStart)
-          _startTime = picked;
-        else
-          _endTime = picked;
-      });
-    }
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (isStart) {
+        _startTime = picked;
+      } else {
+        _endTime = picked;
+      }
+    });
+  }
+
+  Widget _timeField({required bool isStart}) {
+    final value = isStart ? _startTime : _endTime;
+    final label = isStart ? 'Giờ bắt đầu' : 'Giờ kết thúc';
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _pickTime(isStart),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 76),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(.09),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.schedule_rounded,
+                  size: 20, color: AppColors.primary),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 3),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value == null ? 'Chọn giờ' : _timeStr(value),
+                      style: TextStyle(
+                        color: value == null
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textSecondary, size: 20),
+          ]),
+        ),
+      ),
+    );
   }
 
   double get _durationHours {
@@ -184,7 +252,7 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
         await SupabaseService.instance.createSession(session);
       }
 
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, _selectedDate);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -343,55 +411,9 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _pickTime(true),
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: 'Giờ bắt đầu',
-                                  filled: true,
-                                  fillColor: AppColors.surface,
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        const BorderSide(color: Colors.black45),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                ),
-                                child: Text(_startTime == null
-                                    ? 'Chọn giờ'
-                                    : _timeStr(_startTime!)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _pickTime(false),
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: 'Giờ kết thúc',
-                                  filled: true,
-                                  fillColor: AppColors.surface,
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        const BorderSide(color: Colors.black45),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                ),
-                                child: Text(_endTime == null
-                                    ? 'Chọn giờ'
-                                    : _timeStr(_endTime!)),
-                              ),
-                            ),
-                          ),
+                          Expanded(child: _timeField(isStart: true)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _timeField(isStart: false)),
                         ],
                       ),
                       const SizedBox(height: 24),
