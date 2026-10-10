@@ -3,6 +3,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/program.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/network_status.dart';
 import '../../../widgets/swipeable_action_card.dart';
 import '../../../core/utils/currency_formatter.dart';
 
@@ -30,16 +31,14 @@ class ProgramListScreenState extends State<ProgramListScreen> {
           .getPrograms(forceRefresh: forceRefresh);
       if (mounted) setState(() => _programs = programs);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi tải danh sách: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void refreshFromNetwork({bool forceRefresh = true}) {
+    _loadPrograms(forceRefresh: forceRefresh);
   }
 
   Future<void> _deleteProgram(String id) async {
@@ -47,13 +46,7 @@ class ProgramListScreenState extends State<ProgramListScreen> {
       await SupabaseService.instance.deleteProgram(id);
       setState(() => _programs.removeWhere((p) => p.id == id));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi xóa CTĐT: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 
@@ -121,13 +114,7 @@ class ProgramListScreenState extends State<ProgramListScreen> {
                           _loadPrograms();
                         }
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Lỗi: $e'),
-                                backgroundColor: AppColors.error),
-                          );
-                        }
+                        NetworkStatus.reportFailure(e);
                         setState(() => isLoading = false);
                       }
                     },

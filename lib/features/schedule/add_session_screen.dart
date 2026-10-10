@@ -5,6 +5,7 @@ import '../../core/models/program.dart';
 import '../../core/models/session.dart';
 import '../../core/models/student.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/network_status.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 import 'package:uuid/uuid.dart';
 import '../../widgets/form_bottom_sheet.dart';
@@ -181,30 +182,9 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_studentNameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng nhập hoặc chọn tên học sinh'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-    if (_selectedBranch == null || _selectedProgram == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng chọn chi nhánh và CTĐT'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-    if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng chọn giờ học'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
+    if (_studentNameCtrl.text.trim().isEmpty) return;
+    if (_selectedBranch == null || _selectedProgram == null) return;
+    if (_startTime == null || _endTime == null) return;
 
     setState(() => _loading = true);
     try {
@@ -254,11 +234,7 @@ class _AddSessionScreenState extends State<AddSessionScreen> {
 
       if (mounted) Navigator.pop(context, _selectedDate);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

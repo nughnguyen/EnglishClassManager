@@ -6,6 +6,7 @@ import '../../../core/models/student.dart';
 import '../../../core/models/branch.dart';
 import '../../../core/models/program.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/network_status.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
@@ -38,6 +39,10 @@ class StudentListScreenState extends State<StudentListScreen> {
     _loadData();
   }
 
+  void refreshFromNetwork({bool forceRefresh = true}) {
+    _loadData(forceRefresh: forceRefresh);
+  }
+
   void openAddStudent() => _navigateToAdd();
 
   Future<void> _loadData({bool forceRefresh = false}) async {
@@ -58,13 +63,8 @@ class StudentListScreenState extends State<StudentListScreen> {
         });
       }
     } catch (e) {
+      NetworkStatus.reportFailure(e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi tải dữ liệu: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
         setState(() => _loading = false);
       }
     }
@@ -81,14 +81,7 @@ class StudentListScreenState extends State<StudentListScreen> {
       });
       await scheduleKey.currentState?.loadSessions(forceRefresh: true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi xoá học sinh: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 

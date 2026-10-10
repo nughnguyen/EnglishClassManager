@@ -35,37 +35,36 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       // Navigation handled by auth state listener in main.dart
     } on AuthException catch (e) {
+      final message = _mapAuthError(e.message);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_mapAuthError(e.message)),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        if (message != null) _showAuthError(message);
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi kết nối mạng. Vui lòng thử lại.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    } catch (_) {
+      // Keep network and unexpected server errors out of the login UI.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _mapAuthError(String message) {
-    if (message.contains('Invalid login credentials')) {
+  String? _mapAuthError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('invalid login credentials') ||
+        normalized.contains('invalid credentials')) {
       return 'Email hoặc mật khẩu không đúng.';
-    } else if (message.contains('Email not confirmed')) {
-      return 'Vui lòng xác nhận email trước khi đăng nhập.';
-    } else if (message.toLowerCase().contains('network')) {
-      return 'Lỗi kết nối mạng. Vui lòng thử lại.';
     }
-    return message;
+    if (normalized.contains('email not confirmed')) {
+      return 'Vui lòng xác nhận email trước khi đăng nhập.';
+    }
+    return null;
+  }
+
+  void _showAuthError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override

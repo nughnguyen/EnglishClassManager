@@ -64,26 +64,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+      final message = _mapRegistrationError(e.message);
+      if (mounted && message != null) _showAuthError(message);
+    } catch (_) {
+      // Keep network and unexpected server errors out of the registration UI.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String? _mapRegistrationError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('already registered') ||
+        normalized.contains('user already exists')) {
+      return 'Email này đã được đăng ký.';
+    }
+    if (normalized.contains('invalid email') ||
+        normalized.contains('email address') &&
+            normalized.contains('invalid')) {
+      return 'Email không hợp lệ.';
+    }
+    if (normalized.contains('password') &&
+        (normalized.contains('weak') || normalized.contains('least'))) {
+      return 'Mật khẩu chưa đủ mạnh hoặc chưa đủ độ dài.';
+    }
+    return null;
+  }
+
+  void _showAuthError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override

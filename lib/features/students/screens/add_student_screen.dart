@@ -4,6 +4,7 @@ import '../../../core/models/branch.dart';
 import '../../../core/models/program.dart';
 import '../../../core/models/student.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/network_status.dart';
 import 'package:uuid/uuid.dart';
 import '../../../widgets/form_bottom_sheet.dart';
 import '../../../widgets/time_wheel_picker.dart';
@@ -82,14 +83,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi tải dữ liệu: $e'),
-              backgroundColor: AppColors.error),
-        );
-        setState(() => _loadingData = false);
-      }
+      NetworkStatus.reportFailure(e);
+      if (mounted) setState(() => _loadingData = false);
     }
   }
 
@@ -112,30 +107,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedBranch == null || _selectedProgram == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng chọn chi nhánh và chương trình'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-    if (_selectedDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng chọn ít nhất 1 ngày học'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-    if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Vui lòng chọn giờ học'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
+    if (_selectedBranch == null || _selectedProgram == null) return;
+    if (_selectedDays.isEmpty) return;
+    if (_startTime == null || _endTime == null) return;
 
     setState(() => _loading = true);
     try {
@@ -173,11 +147,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

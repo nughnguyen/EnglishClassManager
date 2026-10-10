@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 import 'package:uuid/uuid.dart';
 import '../models/branch.dart';
@@ -5,6 +7,8 @@ import '../models/program.dart';
 import '../models/student.dart';
 import '../models/session.dart';
 import '../models/profile.dart';
+import 'offline_cache.dart';
+import 'network_status.dart';
 import '../../core/utils/date_utils.dart';
 
 class SupabaseService {
@@ -21,6 +25,7 @@ class SupabaseService {
   static final Map<String, List<Session>> _sessionCache = {};
   static final Map<String, Future<List<Session>>> _sessionRequests = {};
   static final Map<String, int> _cacheVersions = {};
+  static final Set<String> _backgroundRefreshes = {};
 
   SupabaseService(this._client);
 
@@ -28,6 +33,46 @@ class SupabaseService {
       SupabaseService(Supabase.instance.client);
 
   String get _userId => _client.auth.currentUser!.id;
+
+  bool _isNetworkError(Object error) {
+    final message = error.toString().toLowerCase();
+    return ['socketexception', 'clientexception', 'failed host lookup',
+      'connection refused', 'connection reset', 'network is unreachable',
+      'timed out', 'timeout', 'no address associated', 'failed to fetch',
+      'xmlhttprequest error', 'network request failed']
+        .any(message.contains);
+  }
+
+  Future<void> _saveCache(String key, List<dynamic> rows) async {
+    try {
+      await OfflineCache.save(_userId, key,
+          rows.map((row) => Map<String, dynamic>.from(row as Map)).toList());
+    } catch (_) {
+      // A cache write failure should not make a successful online load fail.
+    }
+  }
+
+  Future<List<T>?> _readCache<T>(
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final rows = await OfflineCache.read(_userId, key);
+    return rows?.map(fromJson).toList();
+  }
+
+  void _refreshInBackground(
+      String key, Future<void> Function() refresh) {
+    if (!_backgroundRefreshes.add(key)) return;
+    unawaited(() async {
+      try {
+        await refresh();
+      } catch (error) {
+        NetworkStatus.reportFailure(error);
+      } finally {
+        _backgroundRefreshes.remove(key);
+      }
+    }());
+  }
 
   String _cacheKey(String type, [String? suffix]) =>
       '$_userId:$type${suffix == null ? '' : ':$suffix'}';
@@ -88,21 +133,25 @@ class SupabaseService {
     required String password,
     required String fullName,
   }) async {
-    return await _client.auth.signUp(
+    final response = await _client.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': fullName},
     );
+    NetworkStatus.setOffline(false);
+    return response;
   }
 
   Future<AuthResponse> signIn({
     required String email,
     required String password,
   }) async {
-    return await _client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    NetworkStatus.setOffline(false);
+    return response;
   }
 
   Future<void> signOut() async {
@@ -131,37 +180,58 @@ class SupabaseService {
 
   Future<Profile?> getProfile({bool forceRefresh = false}) async {
     final key = _cacheKey('profile');
+    final inFlight = _profileRequests[key];
+    if (forceRefresh && inFlight != null) return inFlight;
     if (forceRefresh) {
       _bumpCacheVersion(key);
       _profileCache.remove(key);
       _profileRequests.remove(key);
     }
     if (_profileCache.containsKey(key)) return _profileCache[key];
+
+    if (!forceRefresh) {
+      final cached = await _readCache('profile', Profile.fromJson);
+      if (cached != null && cached.isNotEmpty) {
+        _profileCache[key] = cached.first;
+        if (!NetworkStatus.isOffline.value) {
+          _refreshInBackground(key, () async {
+            await getProfile(forceRefresh: true);
+          });
+        }
+        return cached.first;
+      }
+    }
     final pending = _profileRequests[key];
     if (pending != null) return pending;
+    if (NetworkStatus.isOffline.value) return null;
 
     final version = _cacheVersion(key);
     final request = _fetchProfile();
     _profileRequests[key] = request;
     try {
       final profile = await request;
+      NetworkStatus.setOffline(false);
+      if (profile != null) await _saveCache('profile', [profile.toJson()]);
       if (profile != null && _cacheVersion(key) == version) {
         _profileCache[key] = profile;
       }
+      NetworkStatus.reportDataUpdated();
       return profile;
+    } catch (error) {
+      if (!_isNetworkError(error)) rethrow;
+      NetworkStatus.setOffline(true);
+      final cached = await _readCache('profile', Profile.fromJson);
+      if (cached != null && cached.isNotEmpty) return cached.first;
+      rethrow;
     } finally {
       if (identical(_profileRequests[key], request)) _profileRequests.remove(key);
     }
   }
 
   Future<Profile?> _fetchProfile() async {
-    try {
-      final data =
-          await _client.from('profiles').select().eq('id', _userId).single();
-      return Profile.fromJson(data);
-    } catch (e) {
-      return null;
-    }
+    final data =
+        await _client.from('profiles').select().eq('id', _userId).single();
+    return Profile.fromJson(data);
   }
 
   Future<void> updateProfile(Profile profile) async {
@@ -184,6 +254,8 @@ class SupabaseService {
 
   Future<List<Branch>> getBranches({bool forceRefresh = false}) async {
     final key = _cacheKey('branches');
+    final inFlight = _branchRequests[key];
+    if (forceRefresh && inFlight != null) return List.of(await inFlight);
     if (forceRefresh) {
       _bumpCacheVersion(key);
       _branchCache.remove(key);
@@ -191,16 +263,39 @@ class SupabaseService {
     }
     final cached = _branchCache[key];
     if (cached != null) return List.of(cached);
+
+    if (!forceRefresh) {
+      final disk = await _readCache('branches', Branch.fromJson);
+      if (disk != null) {
+        _branchCache[key] = disk;
+        if (!NetworkStatus.isOffline.value) {
+          _refreshInBackground(key, () async {
+            await getBranches(forceRefresh: true);
+          });
+        }
+        return List.of(disk);
+      }
+    }
     final pending = _branchRequests[key];
     if (pending != null) return List.of(await pending);
+    if (NetworkStatus.isOffline.value) return <Branch>[];
 
     final version = _cacheVersion(key);
     final request = _fetchBranches();
     _branchRequests[key] = request;
     try {
       final branches = await request;
+      NetworkStatus.setOffline(false);
+      await _saveCache('branches', branches.map((e) => e.toJson()).toList());
       if (_cacheVersion(key) == version) _branchCache[key] = branches;
+      NetworkStatus.reportDataUpdated();
       return List.of(branches);
+    } catch (error) {
+      if (!_isNetworkError(error)) rethrow;
+      NetworkStatus.setOffline(true);
+      final cached = await _readCache('branches', Branch.fromJson);
+      if (cached != null) return cached;
+      rethrow;
     } finally {
       if (identical(_branchRequests[key], request)) _branchRequests.remove(key);
     }
@@ -247,6 +342,8 @@ class SupabaseService {
 
   Future<List<Program>> getPrograms({bool forceRefresh = false}) async {
     final key = _cacheKey('programs');
+    final inFlight = _programRequests[key];
+    if (forceRefresh && inFlight != null) return List.of(await inFlight);
     if (forceRefresh) {
       _bumpCacheVersion(key);
       _programCache.remove(key);
@@ -254,16 +351,39 @@ class SupabaseService {
     }
     final cached = _programCache[key];
     if (cached != null) return List.of(cached);
+
+    if (!forceRefresh) {
+      final disk = await _readCache('programs', Program.fromJson);
+      if (disk != null) {
+        _programCache[key] = disk;
+        if (!NetworkStatus.isOffline.value) {
+          _refreshInBackground(key, () async {
+            await getPrograms(forceRefresh: true);
+          });
+        }
+        return List.of(disk);
+      }
+    }
     final pending = _programRequests[key];
     if (pending != null) return List.of(await pending);
+    if (NetworkStatus.isOffline.value) return <Program>[];
 
     final version = _cacheVersion(key);
     final request = _fetchPrograms();
     _programRequests[key] = request;
     try {
       final programs = await request;
+      NetworkStatus.setOffline(false);
+      await _saveCache('programs', programs.map((e) => e.toJson()).toList());
       if (_cacheVersion(key) == version) _programCache[key] = programs;
+      NetworkStatus.reportDataUpdated();
       return List.of(programs);
+    } catch (error) {
+      if (!_isNetworkError(error)) rethrow;
+      NetworkStatus.setOffline(true);
+      final cached = await _readCache('programs', Program.fromJson);
+      if (cached != null) return cached;
+      rethrow;
     } finally {
       if (identical(_programRequests[key], request)) _programRequests.remove(key);
     }
@@ -320,6 +440,8 @@ class SupabaseService {
 
   Future<List<Student>> getStudents({bool forceRefresh = false}) async {
     final key = _cacheKey('students');
+    final inFlight = _studentRequests[key];
+    if (forceRefresh && inFlight != null) return List.of(await inFlight);
     if (forceRefresh) {
       _bumpCacheVersion(key);
       _studentCache.remove(key);
@@ -327,16 +449,39 @@ class SupabaseService {
     }
     final cached = _studentCache[key];
     if (cached != null) return List.of(cached);
+
+    if (!forceRefresh) {
+      final disk = await _readCache('students', Student.fromJson);
+      if (disk != null) {
+        _studentCache[key] = disk;
+        if (!NetworkStatus.isOffline.value) {
+          _refreshInBackground(key, () async {
+            await getStudents(forceRefresh: true);
+          });
+        }
+        return List.of(disk);
+      }
+    }
     final pending = _studentRequests[key];
     if (pending != null) return List.of(await pending);
+    if (NetworkStatus.isOffline.value) return <Student>[];
 
     final version = _cacheVersion(key);
     final request = _fetchStudents();
     _studentRequests[key] = request;
     try {
       final students = await request;
+      NetworkStatus.setOffline(false);
+      await _saveCache('students', students.map((e) => e.toJson()).toList());
       if (_cacheVersion(key) == version) _studentCache[key] = students;
+      NetworkStatus.reportDataUpdated();
       return List.of(students);
+    } catch (error) {
+      if (!_isNetworkError(error)) rethrow;
+      NetworkStatus.setOffline(true);
+      final cached = await _readCache('students', Student.fromJson);
+      if (cached != null) return cached;
+      rethrow;
     } finally {
       if (identical(_studentRequests[key], request)) _studentRequests.remove(key);
     }
@@ -417,6 +562,8 @@ class SupabaseService {
   }) async {
     final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
     final key = _cacheKey('sessions', monthKey);
+    final inFlight = _sessionRequests[key];
+    if (forceRefresh && inFlight != null) return List.of(await inFlight);
     if (forceRefresh) {
       _bumpCacheVersion(key);
       _sessionCache.remove(key);
@@ -424,16 +571,42 @@ class SupabaseService {
     }
     final cached = _sessionCache[key];
     if (cached != null) return List.of(cached);
+
+    if (!forceRefresh) {
+      final disk = await _readCache(
+          'sessions_$monthKey', Session.fromJson);
+      if (disk != null) {
+        _sessionCache[key] = disk;
+        if (!NetworkStatus.isOffline.value) {
+          _refreshInBackground(key, () async {
+            await getSessionsForMonth(month, forceRefresh: true);
+          });
+        }
+        return List.of(disk);
+      }
+    }
     final pending = _sessionRequests[key];
     if (pending != null) return List.of(await pending);
+    if (NetworkStatus.isOffline.value) return <Session>[];
 
     final version = _cacheVersion(key);
     final request = _fetchSessionsForMonth(month);
     _sessionRequests[key] = request;
     try {
       final sessions = await request;
+      NetworkStatus.setOffline(false);
+      await _saveCache(
+          'sessions_$monthKey', sessions.map((e) => e.toJson()).toList());
       if (_cacheVersion(key) == version) _sessionCache[key] = sessions;
+      NetworkStatus.reportDataUpdated();
       return List.of(sessions);
+    } catch (error) {
+      if (!_isNetworkError(error)) rethrow;
+      NetworkStatus.setOffline(true);
+      final cached = await _readCache(
+          'sessions_$monthKey', Session.fromJson);
+      if (cached != null) return cached;
+      rethrow;
     } finally {
       if (identical(_sessionRequests[key], request)) _sessionRequests.remove(key);
     }

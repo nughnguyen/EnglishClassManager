@@ -7,6 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/session.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/network_status.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_utils.dart';
@@ -63,11 +64,7 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
       );
       if (mounted) setState(() => _sessions = sessions);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -163,13 +160,7 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi xuất Excel: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -250,19 +241,10 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
   Future<void> _openExportFile(File file) async {
     if (!await file.exists()) {
       await _loadExportHistory();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không tìm thấy file báo cáo này.')),
-        );
-      }
       return;
     }
     final result = await OpenFilex.open(file.path);
-    if (result.type != ResultType.done && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không mở được file: ${result.message}')),
-      );
-    }
+    if (result.type != ResultType.done) return;
   }
 
   Future<void> _deleteExportFile(File file) async {
@@ -294,13 +276,7 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Không xóa được file: $e'),
-              backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 
@@ -810,11 +786,9 @@ class SalaryReportScreenState extends State<SalaryReportScreen>
         );
       }
     } catch (e) {
+      NetworkStatus.reportFailure(e);
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-      );
     }
   }
 }
@@ -884,11 +858,7 @@ class _ProfileFormSheetState extends State<_ProfileFormSheet> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

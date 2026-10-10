@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/session.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/network_status.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/swipeable_action_card.dart';
@@ -33,6 +34,8 @@ class ScheduleScreenState extends State<ScheduleScreen>
   int _greetingMessageIndex = 0;
   Timer? _greetingCycleTimer;
   bool _staleNotificationsCleaned = false;
+  bool _notificationSyncRunning = false;
+  List<Session>? _pendingNotificationSessions;
 
   @override
   void initState() {
@@ -85,7 +88,9 @@ class ScheduleScreenState extends State<ScheduleScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _returnToToday();
+    if (state == AppLifecycleState.resumed) {
+      unawaited(loadSessions(forceRefresh: true));
+    }
   }
 
   Future<void> showToday() => _returnToToday();
@@ -127,65 +132,78 @@ class ScheduleScreenState extends State<ScheduleScreen>
         forceRefresh: forceRefresh,
       );
       if (mounted) setState(() => _monthSessions = sessions);
-
-      if (!_staleNotificationsCleaned) {
-        try {
-          final notificationService = NotificationService();
-          final pendingSessions = await SupabaseService.instance
-              .getPendingSessionsForNotifications();
-          // Remove old alarms and already displayed reminders, including ones
-          // left behind by sessions deleted before this cleanup was added.
-          await notificationService.cancelAllNotifications();
-          for (final session in pendingSessions) {
-            final endTime = _sessionEndTime(session);
-            if (endTime == null || !endTime.isAfter(DateTime.now())) continue;
-            await notificationService.scheduleSessionEndNotification(
-              id: session.id.hashCode & 0x7fffffff,
-              sessionId: session.id,
-              sessionName: session.studentName,
-              endTime: endTime,
-            );
-          }
-          _staleNotificationsCleaned = true;
-        } catch (_) {
-          // Retry reconciliation on the next successful schedule refresh.
-        }
-      }
-
-      // Schedule local notifications for pending sessions
-      for (final s in sessions) {
-        if (s.status == SessionStatus.pending) {
-          final endTime = _sessionEndTime(s);
-          if (endTime != null && endTime.isAfter(DateTime.now())) {
-            await NotificationService().scheduleSessionEndNotification(
-              id: s.id.hashCode & 0x7fffffff,
-              sessionId: s.id,
-              sessionName: s.studentName,
-              endTime: endTime,
-            );
-          }
-        } else {
-          await NotificationService()
-              .cancelNotification(s.id.hashCode & 0x7fffffff);
-        }
-      }
+      _queueNotificationSync(sessions);
     } catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Lỗi đồng bộ dữ liệu'),
-            content: Text(e.toString()),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Đóng'))
-            ],
-          ),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _queueNotificationSync(List<Session> sessions) {
+    _pendingNotificationSessions = List.of(sessions);
+    if (_notificationSyncRunning) return;
+    _notificationSyncRunning = true;
+    unawaited(_drainNotificationSyncQueue());
+  }
+
+  Future<void> _drainNotificationSyncQueue() async {
+    try {
+      while (mounted && _pendingNotificationSessions != null) {
+        final sessions = _pendingNotificationSessions!;
+        _pendingNotificationSessions = null;
+        try {
+          await _syncNotifications(sessions);
+        } catch (error) {
+          NetworkStatus.reportFailure(error);
+        }
+      }
+    } finally {
+      _notificationSyncRunning = false;
+      final pending = _pendingNotificationSessions;
+      if (mounted && pending != null) _queueNotificationSync(pending);
+    }
+  }
+
+  Future<void> _syncNotifications(List<Session> sessions) async {
+    final notificationService = NotificationService();
+    if (!_staleNotificationsCleaned) {
+      try {
+        final pendingSessions = await SupabaseService.instance
+            .getPendingSessionsForNotifications();
+        await notificationService.cancelAllNotifications();
+        for (final session in pendingSessions) {
+          final endTime = _sessionEndTime(session);
+          if (endTime == null || !endTime.isAfter(DateTime.now())) continue;
+          await notificationService.scheduleSessionEndNotification(
+            id: session.id.hashCode & 0x7fffffff,
+            sessionId: session.id,
+            sessionName: session.studentName,
+            endTime: endTime,
+          );
+        }
+        _staleNotificationsCleaned = true;
+      } catch (error) {
+        NetworkStatus.reportFailure(error);
+        // Try the cleanup again after the next schedule refresh.
+      }
+    }
+
+    for (final session in sessions) {
+      if (session.status == SessionStatus.pending) {
+        final endTime = _sessionEndTime(session);
+        if (endTime != null && endTime.isAfter(DateTime.now())) {
+          await notificationService.scheduleSessionEndNotification(
+            id: session.id.hashCode & 0x7fffffff,
+            sessionId: session.id,
+            sessionName: session.studentName,
+            endTime: endTime,
+          );
+        }
+      } else {
+        await notificationService
+            .cancelNotification(session.id.hashCode & 0x7fffffff);
+      }
     }
   }
 
@@ -251,11 +269,8 @@ class ScheduleScreenState extends State<ScheduleScreen>
         _scrollToSelectedDay();
         _showActionBottomSheet(selectedSession);
       });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Không tìm thấy ca học trong thông báo.')));
-      }
+    } catch (e) {
+      NetworkStatus.reportFailure(e);
     }
   }
 
@@ -298,8 +313,8 @@ class ScheduleScreenState extends State<ScheduleScreen>
         screenWidth / 2;
     _rulerController.animateTo(
       offset.clamp(0.0, _rulerController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
     );
   }
 
@@ -385,11 +400,7 @@ class ScheduleScreenState extends State<ScheduleScreen>
       await SupabaseService.instance.updateSessionStatus(session.id, status);
       await loadSessions();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 
@@ -401,12 +412,7 @@ class ScheduleScreenState extends State<ScheduleScreen>
       } catch (_) {}
       await loadSessions();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi xoá: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 
@@ -619,6 +625,7 @@ class ScheduleScreenState extends State<ScheduleScreen>
                     child: ListView.builder(
                       controller: _rulerController,
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: daysInMonth,
                       itemBuilder: (context, index) {
@@ -723,17 +730,22 @@ class ScheduleScreenState extends State<ScheduleScreen>
                           ),
                         );
 
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(32),
                           onTap: () {
                             setState(() => _selectedDate = date);
                             WidgetsBinding.instance.addPostFrameCallback(
                                 (_) => _scrollToSelectedDay());
                           },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 5),
-                            child: content,
+                          child: AnimatedScale(
+                            scale: isSelected ? 1 : .96,
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutBack,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 5),
+                              child: content,
+                            ),
                           ),
                         );
                       },
@@ -744,7 +756,28 @@ class ScheduleScreenState extends State<ScheduleScreen>
             ),
             // Sessions list
             Expanded(
-              child: _loading
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                reverseDuration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, .025),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey<String>(
+                    _loading
+                        ? 'schedule-loading'
+                        : '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}',
+                  ),
+                  child: _loading
                   ? _buildSessionSkeleton()
                   : _selectedDaySessions.isEmpty
                       ? RefreshIndicator(
@@ -838,7 +871,9 @@ class ScheduleScreenState extends State<ScheduleScreen>
                             },
                           ),
                         ),
-            ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

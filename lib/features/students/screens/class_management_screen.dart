@@ -10,10 +10,10 @@ class ClassManagementScreen extends StatefulWidget {
   const ClassManagementScreen({super.key});
 
   @override
-  State<ClassManagementScreen> createState() => _ClassManagementScreenState();
+  State<ClassManagementScreen> createState() => ClassManagementScreenState();
 }
 
-class _ClassManagementScreenState extends State<ClassManagementScreen>
+class ClassManagementScreenState extends State<ClassManagementScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final GlobalKey<StudentListScreenState> _studentsKey = studentListKey;
@@ -39,6 +39,20 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
       ..removeListener(_handleTabChanged)
       ..dispose();
     super.dispose();
+  }
+
+  void refreshCurrentData({bool forceRefresh = false}) {
+    switch (_tabController.index) {
+      case 0:
+        _studentsKey.currentState
+            ?.refreshFromNetwork(forceRefresh: forceRefresh);
+      case 1:
+        _branchesKey.currentState
+            ?.refreshFromNetwork(forceRefresh: forceRefresh);
+      case 2:
+        _programsKey.currentState
+            ?.refreshFromNetwork(forceRefresh: forceRefresh);
+    }
   }
 
   void _addCurrentItem() {

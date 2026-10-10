@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/supabase_config.dart';
 import 'core/constants/app_colors.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/network_status.dart';
+import 'core/services/network_monitor.dart';
+import 'core/services/supabase_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/verify_email_screen.dart';
 import 'features/schedule/schedule_screen.dart';
@@ -21,6 +26,8 @@ final GlobalKey<SalaryReportScreenState> salaryKey =
     GlobalKey<SalaryReportScreenState>();
 final GlobalKey<StudentListScreenState> studentListKey =
     GlobalKey<StudentListScreenState>();
+final GlobalKey<ClassManagementScreenState> classManagementKey =
+    GlobalKey<ClassManagementScreenState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +37,7 @@ void main() async {
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+  await NetworkMonitor.instance.start();
 
   // Initialize notifications
   await NotificationService().init(
@@ -192,7 +200,59 @@ class EnglishClassManagerApp extends StatelessWidget {
           ),
         ),
       ),
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [
+          child ?? const SizedBox.shrink(),
+          const Positioned(
+            top: 8,
+            right: 12,
+            child: SafeArea(child: _OfflineStatusBadge()),
+          ),
+        ],
+      ),
       home: const _AuthGate(),
+    );
+  }
+}
+
+class _OfflineStatusBadge extends StatelessWidget {
+  const _OfflineStatusBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: NetworkStatus.isOffline,
+      builder: (context, offline, _) {
+        if (!offline) return const SizedBox.shrink();
+        return Material(
+          color: AppColors.textPrimary.withOpacity(.88),
+          borderRadius: BorderRadius.circular(20),
+          elevation: 3,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: NetworkStatus.retry,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.wifi_off_rounded, size: 15, color: Colors.white),
+                  SizedBox(width: 6),
+                  Text(
+                    'Mất mạng · Kết nối Internet để đồng bộ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -250,13 +310,22 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    NetworkStatus.onRetry = _retryCurrentTab;
+    NetworkStatus.dataRevision.addListener(_onDataUpdated);
     _screens = [
       ScheduleScreen(key: scheduleKey),
-      const ClassManagementScreen(),
+      ClassManagementScreen(key: classManagementKey),
       SalaryReportScreen(key: salaryKey),
       const SettingsScreen(),
     ];
     _checkInitialNotification();
+  }
+
+  @override
+  void dispose() {
+    NetworkStatus.onRetry = null;
+    NetworkStatus.dataRevision.removeListener(_onDataUpdated);
+    super.dispose();
   }
 
   Future<void> _checkInitialNotification() async {
@@ -361,11 +430,48 @@ class _MainShellState extends State<MainShell> {
 
   void _refreshTab(int index) {
     if (index == 0) {
-      scheduleKey.currentState?.showToday();
+      scheduleKey.currentState?.loadSessions();
     } else if (index == 2) {
       salaryKey.currentState?.loadData(showLoading: true);
     } else if (index == 1) {
-      studentListKey.currentState?.loadStudents();
+      classManagementKey.currentState?.refreshCurrentData();
+    }
+  }
+
+  void _onDataUpdated() {
+    if (mounted) _refreshTab(_currentIndex);
+  }
+
+  void _retryCurrentTab() {
+    unawaited(_refreshReferenceData());
+    if (_currentIndex == 0) {
+      scheduleKey.currentState
+          ?.loadSessions(showLoading: true, forceRefresh: true);
+    } else if (_currentIndex == 1) {
+      classManagementKey.currentState?.refreshCurrentData(forceRefresh: true);
+    } else if (_currentIndex == 2) {
+      salaryKey.currentState?.loadData(showLoading: true, forceRefresh: true);
+    } else {
+      scheduleKey.currentState
+          ?.loadSessions(showLoading: true, forceRefresh: true);
+    }
+  }
+
+  Future<void> _refreshReferenceData() async {
+    final service = SupabaseService.instance;
+    await Future.wait([
+      _quietlyRefresh(() => service.getProfile(forceRefresh: true)),
+      _quietlyRefresh(() => service.getBranches(forceRefresh: true)),
+      _quietlyRefresh(() => service.getPrograms(forceRefresh: true)),
+      _quietlyRefresh(() => service.getStudents(forceRefresh: true)),
+    ]);
+  }
+
+  Future<void> _quietlyRefresh(Future<Object?> Function() refresh) async {
+    try {
+      await refresh();
+    } catch (error) {
+      NetworkStatus.reportFailure(error);
     }
   }
 

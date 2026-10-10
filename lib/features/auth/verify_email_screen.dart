@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/network_status.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final String? email;
@@ -62,6 +63,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on AuthException catch (e) {
+      NetworkStatus.reportFailure(e);
       if (e.message.contains('Email not confirmed')) {
         // Vẫn chưa xác nhận, tiếp tục đợi
       } else if (e.message.contains('session_not_found') || e.message.contains('not found')) {
@@ -71,7 +73,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         _timer?.cancel();
       }
     } catch (e) {
-      // Lỗi mạng hoặc lỗi khác
+      NetworkStatus.reportFailure(e);
     } finally {
       _isChecking = false;
     }
@@ -95,14 +97,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         }
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi gửi email. Vui lòng thử lại sau.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+      NetworkStatus.reportFailure(e);
     }
   }
 
