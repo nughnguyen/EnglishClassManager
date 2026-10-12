@@ -18,16 +18,42 @@ class SessionCard extends StatelessWidget {
     this.isCompleted = false,
   });
 
-  String get _statusLabel {
+  String _statusLabelAt(DateTime now) {
     switch (session.status) {
       case SessionStatus.pending:
         if (isOngoing) return 'Đang diễn ra';
-        return _hasEnded ? 'Chờ điểm danh' : 'Sắp tới';
+        if (_hasEnded) return 'Chờ điểm danh';
+        final start = _startAt;
+        if (start != null) {
+          final remaining = start.difference(now);
+          if (!remaining.isNegative && remaining <= const Duration(hours: 12)) {
+            final minutes = (remaining.inSeconds + 59) ~/ 60;
+            final hours = minutes ~/ 60;
+            final extraMinutes = minutes % 60;
+            if (hours > 0 && extraMinutes > 0) {
+              return 'Còn ${hours}g ${extraMinutes}p';
+            }
+            if (hours > 0) return 'Còn ${hours}g';
+            return 'Còn ${minutes}p';
+          }
+        }
+        return 'Sắp tới';
       case SessionStatus.completed:
         return 'Hoàn thành';
       case SessionStatus.cancelled:
         return 'Vắng mặt';
     }
+  }
+
+  DateTime? get _startAt {
+    final match = RegExp(r'^\s*(\d{1,2}):(\d{2})\s*-').firstMatch(session.timeSlot);
+    if (match == null) return null;
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+    return DateTime(session.date.year, session.date.month, session.date.day, hour, minute);
   }
 
   bool get _hasEnded {
@@ -128,12 +154,19 @@ class SessionCard extends StatelessWidget {
                                 color: _statusColor.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Text(
-                                _statusLabel,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _statusColor,
+                              child: StreamBuilder<DateTime>(
+                                stream: Stream<DateTime>.periodic(
+                                  const Duration(minutes: 1),
+                                  (_) => DateTime.now(),
+                                ),
+                                initialData: DateTime.now(),
+                                builder: (context, snapshot) => Text(
+                                  _statusLabelAt(snapshot.data ?? DateTime.now()),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _statusColor,
+                                  ),
                                 ),
                               ),
                             ),
