@@ -37,19 +37,27 @@ void main() async {
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
-  await NetworkMonitor.instance.start();
+  try {
+    await NetworkMonitor.instance.start();
+  } catch (error, stackTrace) {
+    debugPrint('Network monitor initialization failed: $error\n$stackTrace');
+  }
 
   // Initialize notifications
-  await NotificationService().init(
-    onNotificationClick: (payload) {
-      if (payload != null) {
-        scheduleKey.currentState?.handleNotificationTap(payload);
-      }
-    },
-  );
-  // Clear persisted Android alarms before the app UI starts. The schedule
-  // screen rebuilds valid reminders from the current sessions after sign-in.
-  await NotificationService().cancelAllNotifications();
+  try {
+    await NotificationService().init(
+      onNotificationClick: (payload) {
+        if (payload != null) {
+          scheduleKey.currentState?.handleNotificationTap(payload);
+        }
+      },
+    );
+    // Clear persisted alarms before the app UI starts. The schedule screen
+    // rebuilds valid reminders from the current sessions after sign-in.
+    await NotificationService().cancelAllNotifications();
+  } catch (error, stackTrace) {
+    debugPrint('Notification initialization failed: $error\n$stackTrace');
+  }
 
   runApp(const EnglishClassManagerApp());
 }
